@@ -1,26 +1,24 @@
 # Projeto 3 — Apache Hop
 
-## Objetivo
+Pipeline ETL completo do BanVic 360 construído com **Apache Hop** via Docker.
+A mesma arquitetura Bronze → Silver → Gold dos projetos anteriores, desta vez
+com uma ferramenta visual low-code de ETL enterprise.
 
-Implementar o pipeline ETL completo do BanVic 360 usando **Apache Hop** via Docker,
-provando que o mesmo resultado pode ser alcançado com uma ferramenta visual low-code de ETL enterprise.
-
-**Pergunta central:** _Quando uma ferramenta visual ETL supera scripts SQL e Python?_
+**Pergunta central:** _Quando uma ferramenta visual ETL faz mais sentido que scripts?_
 
 ---
 
-## Diferenciais técnicos demonstrados
+## Stack técnica
 
-| Conceito Hop | Arquivo | Propósito |
+| Conceito Hop | Arquivo | Por que usei |
 |---|---|---|
 | **ExecSQL transform** | `pipelines/*.hpl` | Executa SQL dentro de um pipeline visual |
-| **RowGenerator** | `pipelines/*.hpl` | Gera linha trigger para acionar transforms sem input |
+| **RowGenerator** | `pipelines/*.hpl` | Gera linha trigger para acionar transforms sem input externo |
 | **Workflow orquestração** | `workflows/00_banvic_pipeline.hwf` | Encadeia pipelines com fluxo sucesso/erro |
-| **SQL action** | `workflows/00_banvic_pipeline.hwf` | Executa DDL de limpeza antes do pipeline |
+| **SQL action** | `workflows/00_banvic_pipeline.hwf` | DDL de limpeza antes do pipeline (idempotência) |
 | **Metadata RDBMS** | `metadata/rdbms/banvic_pg.json` | Conexão parametrizada por variáveis de ambiente |
-| **hop:// protocol** | `${PROJECT_HOME}/...` | Referências relativas ao projeto Hop |
-| **CDATA sections** | `*.hpl/*.hwf` | SQL multi-linha embutido em XML sem escape |
-| **Error handling** | workflow hops `evaluation=N` | Abort automático em qualquer falha |
+| **CDATA sections** | `*.hpl/*.hwf` | SQL multi-linha embutido em XML sem necessidade de escape |
+| **Error handling visual** | workflow hops `evaluation=N` | Abort automático em qualquer falha de etapa |
 
 ---
 
@@ -50,13 +48,11 @@ provando que o mesmo resultado pode ser alcançado com uma ferramenta visual low
 
 ### Pré-requisitos
 
-1. **Root docker-compose rodando** (PostgreSQL com Bronze carregado):
+1. **Postgres rodando com Bronze carregado:**
    ```bash
    # Na raiz do projeto
    docker compose up -d
    python scripts/carga_bronze.py
-   # Gold DDL (se ainda nao executado):
-   # psql < sql/03_gold/ddl_modelo_dimensional.sql
    ```
 
 2. **Docker** instalado e rodando.
@@ -81,17 +77,16 @@ cd projetos/03-apache-hop
 docker compose up --abort-on-container-exit --exit-code-from hop
 ```
 
-### Abrir no Hop GUI (visualização)
+### Abrir no Hop GUI
 
 1. Baixe Apache Hop em [hop.apache.org](https://hop.apache.org)
 2. Abra o Hop GUI
-3. File → New Project → aponte para `projetos/03-apache-hop/hop/`
+3. **File → New Project** → aponte para `projetos/03-apache-hop/hop/`
 4. Abra qualquer `.hpl` ou `.hwf` para visualizar o pipeline
 
 ### Validar KPIs
 
 ```bash
-# Na raiz do projeto
 python scripts/validar_gabarito_pg.py
 ```
 
@@ -133,7 +128,7 @@ RowGenerator (1 linha) → ExecSQL 01 → ExecSQL 02 → ... → ExecSQL N → D
 
 ---
 
-## Resultados esperados
+## Resultado
 
 ```
 Resultado: 7/7 KPIs corretos
@@ -142,33 +137,30 @@ APROVADO: todos os KPIs batem com o gabarito.
 
 ---
 
-## Comparação SQL Puro vs Python vs Apache Hop
+## SQL Puro vs Python vs Apache Hop
 
 | Critério | Projeto 1 (SQL) | Projeto 2 (Python) | Projeto 3 (Hop) |
 |---|---|---|---|
 | Visual / Low-code | Não | Não | **Sim** |
 | Debug interativo | Difícil | `df.head()` | **GUI + preview de dados** |
-| Testabilidade unitária | Baixa | Alta | **Média** (cada transform isolável) |
+| Testabilidade unitária | Baixa | Alta | Média (cada transform isolável) |
 | Auditoria / lineage | Manual | Manual | **Nativo** (metadata) |
 | Reutilização de transforms | Difícil | Funções Python | **Shared transforms** |
-| Curva de aprendizado SQL | Alta | Média | **Baixa** (arrastar e soltar) |
+| Curva de aprendizado SQL | Alta | Média | Baixa (arrastar e soltar) |
 | Performance bruta | Melhor | Overhead pandas | Semelhante ao SQL |
 | Scheduler nativo | Não | Não | **Sim** (Hop Server) |
 
-### Quando usar Apache Hop
+## Quando usar Apache Hop
 
 | Cenário | Hop é ideal? |
 |---|---|
 | Time sem background de programação | **Sim** — visual, low-code |
 | Auditoria e compliance rigoroso | **Sim** — lineage nativo |
-| Migrations entre bancos diferentes | **Sim** — abstração de banco |
-| Pipelines críticos com retry automático | **Sim** — error handling visual |
-| Transformações ultra-complexas (ML) | **Não** — use Python/Spark |
+| Migrações entre bancos diferentes | **Sim** — abstração de banco |
+| Pipelines com retry e error handling visual | **Sim** — tratamento nativo |
+| Transformações complexas com ML | **Não** — use Python/Spark |
 | Pipeline simples em time SQL-first | **Não** — SQL Puro ou dbt |
 
-### Conclusão
-
-Apache Hop democratiza o ETL para equipes sem background de programação,
-oferecendo auditoria, error handling e portabilidade entre ambientes (local, remoto, cloud)
-de forma visual. O custo é a curva de aprendizado da ferramenta e a dependência do JAR.
-O Projeto 5 (Airflow) eleva este padrão com orquestração distribuída e monitoramento avançado.
+Apache Hop é a ferramenta certa quando o time não tem perfil de código mas precisa
+de rastreabilidade, error handling e portabilidade entre ambientes. O investimento
+está na curva de aprendizado da ferramenta, não em programação.

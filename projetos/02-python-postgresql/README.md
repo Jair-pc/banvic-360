@@ -1,17 +1,15 @@
 # Projeto 2 — Python + PostgreSQL
 
-## Objetivo
-
-Implementar o pipeline ETL completo do BanVic 360 usando Python (psycopg2, pandas, SQLAlchemy),
-provando que o mesmo resultado pode ser alcançado sem depender do cliente `psql` ou de SQL scripts avulsos.
+Pipeline ETL completo do BanVic 360 implementado em Python com psycopg2, pandas e SQLAlchemy,
+sem depender do cliente `psql` ou de scripts SQL avulsos.
 
 **Pergunta central:** _Quando Python bate SQL — e quando não bate?_
 
 ---
 
-## Diferenciais técnicos demonstrados
+## Stack técnica
 
-| Técnica | Arquivo | Propósito |
+| Técnica | Arquivo | Por que usei |
 |---|---|---|
 | `pd.read_sql` + `to_sql` | `etl/silver.py` | I/O eficiente entre pandas e PostgreSQL |
 | `np.select` como `CASE WHEN` | `etl/silver.py` | Derivar canal e faixa etária em vetores |
@@ -19,7 +17,7 @@ provando que o mesmo resultado pode ser alcançado sem depender do cliente `psql
 | `UPDATE FROM` via temp table | `etl/gold_dims.py` | Enriquecimento de dim_tempo com macroeconomia |
 | Context manager psycopg2 | `etl/conexao.py` | Controle transacional seguro |
 | SQLAlchemy `engine.begin()` | `etl/conexao.py` | Commit atômico via with-statement |
-| Notebook como storytelling | `notebooks/` | Visualização interativa do pipeline |
+| Notebook como exploração | `notebooks/` | Análise interativa e visualizações dos KPIs |
 
 ---
 
@@ -63,7 +61,7 @@ python projetos/02-python-postgresql/run.py --etapa silver
 python projetos/02-python-postgresql/run.py --etapa gold_dims gold_fatos
 ```
 
-### Notebook (storytelling)
+### Notebook
 
 ```bash
 pip install jupyter matplotlib
@@ -78,7 +76,7 @@ python scripts/validar_gabarito_pg.py
 
 ---
 
-## Resultados esperados
+## Resultado
 
 ```
 Resultado: 7/7 KPIs corretos
@@ -87,7 +85,7 @@ APROVADO: todos os KPIs batem com o gabarito.
 
 ---
 
-## Comparação SQL Puro vs Python
+## SQL Puro vs Python
 
 | Critério | Projeto 1 (SQL) | Projeto 2 (Python) |
 |---|---|---|
@@ -98,7 +96,7 @@ APROVADO: todos os KPIs batem com o gabarito.
 | Reutilização de lógica | Difícil | **Fácil** — funções Python |
 | Dependências | Nenhuma | psycopg2, pandas, SQLAlchemy |
 
-### Quando usar Python + PostgreSQL
+## Quando usar Python + PostgreSQL
 
 | Cenário | Python + PG é ideal? |
 |---|---|
@@ -109,8 +107,6 @@ APROVADO: todos os KPIs batem com o gabarito.
 | Pipeline de alta performance (100M+ linhas) | **Não** — use Spark ou Databricks |
 | Time 100% SQL com DW maduro | **Não** — SQL Puro ou dbt |
 
-### Conclusão
-
-Python + pandas democratiza o ETL para times que não dominam SQL avançado,
-mantendo a mesma correção dos resultados. O custo é performance e dependências adicionais.
-O Projeto 5 (Airflow) eleva este padrão com orquestração, retry e monitoramento.
+Python com pandas é a abordagem certa para times que preferem código sobre SQL,
+especialmente quando as regras de negócio crescem além do que uma query consegue expressar
+com clareza. O custo é performance e a necessidade de gerenciar dependências.

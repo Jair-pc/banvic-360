@@ -1,19 +1,17 @@
 # Projeto 1 — SQL Puro (PostgreSQL)
 
-## Objetivo
-
-Implementar o pipeline ETL completo do BanVic 360 usando exclusivamente SQL nativo do PostgreSQL,
-sem ORM, sem frameworks de orquestração e sem linguagens de programação adicionais.
+Pipeline ETL completo do BanVic 360 construído inteiramente em SQL nativo do PostgreSQL,
+sem ORM, sem frameworks de orquestração e sem bibliotecas externas.
 
 **Pergunta central:** _Quando SQL puro é suficiente — e quando não é?_
 
 ---
 
-## Diferenciais técnicos demonstrados
+## Stack técnica
 
-| Técnica | Arquivo | Propósito |
+| Técnica | Arquivo | Por que usei |
 |---|---|---|
-| `EXPLAIN (ANALYZE, BUFFERS)` | `04_kpis_analyze.sql` | Revelar planos de execução e custos reais |
+| `EXPLAIN (ANALYZE, BUFFERS)` | `04_kpis_analyze.sql` | Entender planos de execução e custos reais |
 | Índices cobertos (`INCLUDE`) | `03_indices.sql` | Index-only scans evitam acesso ao heap |
 | Índices parciais | `03_indices.sql` | `WHERE eh_conta_ativa = TRUE` reduz tamanho do índice |
 | Window functions | `02_populate_fatos.sql`, DDL | `ROW_NUMBER OVER(PARTITION BY...)` para deduplicação SCD |
@@ -48,13 +46,13 @@ sql/
 
 ```bash
 # 1. Popula dimensões
-psql -U banvic_user -d banvic -f projetos/1_sql_puro/sql/01_populate_dims.sql
+psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/01_populate_dims.sql
 
 # 2. Popula fatos (depende das dimensões)
-psql -U banvic_user -d banvic -f projetos/1_sql_puro/sql/02_populate_fatos.sql
+psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/02_populate_fatos.sql
 
 # 3. Cria índices estratégicos
-psql -U banvic_user -d banvic -f projetos/1_sql_puro/sql/03_indices.sql
+psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/03_indices.sql
 
 # 4. Valida KPIs
 python scripts/validar_gabarito_pg.py
@@ -74,10 +72,8 @@ python scripts/validar_gabarito_pg.py
 | KPI 7 | Merge Join dim_cliente | **45 ms** | `idx_dc_faixa` (parcial) |
 | KPI 8 | Cross Join IPCA + Window | **195 ms** | `idx_dt_ipca` (parcial NOT NULL) |
 
-### Observação sobre índices
-
-Com apenas 998 contas e 71.921 transações, o planejador escolhe Seq Scan para tabelas pequenas
-(correto — overhead do índice seria maior). Os índices se tornam relevantes em escala sintética
+Com apenas 998 contas e 71.921 transações, o planejador escolhe Seq Scan para tabelas pequenas —
+overhead do índice seria maior que o ganho. Os índices se tornam relevantes na escala sintética
 (50k+ clientes, 2M+ transações).
 
 ---
@@ -108,17 +104,15 @@ APROVADO: todos os KPIs batem com o gabarito.
 | Time pequeno com forte background SQL | **Sim** — zero dependências |
 | Transformações pontuais ou dashboards finais | **Sim** — lógica vive no banco |
 | Pipeline simples (Bronze → Gold em 1-2 passos) | **Sim** — menos camadas = menos bugs |
-| Orquestração com retry, alertas, scheduling | **Não** — use Airflow / dbt |
+| Orquestração com retry, alertas, scheduling | **Não** — use Airflow ou dbt |
 | Linhagem de dados e catálogo automáticos | **Não** — use dbt |
 | Escala além de 100 GB ou multi-fonte | **Não** — use Spark / Databricks |
 | Versionamento de transformações | **Limitado** — dbt faz melhor |
 | Testes unitários de transformações | **Limitado** — dbt + Great Expectations fazem melhor |
 
-### Conclusão
-
 SQL Puro no PostgreSQL é a escolha certa quando a equipe domina SQL e a complexidade
 do pipeline cabe em um único banco. É a fundação que todo engenheiro de dados precisa
 dominar antes de adicionar camadas de abstração.
 
-O maior risco do SQL puro: **lógica distribuída em múltiplos scripts sem orquestração**.
-O Projeto 2 (Python + PostgreSQL) resolve isso; o Projeto 6 (dbt) resolve com elegância máxima.
+O maior risco: **lógica espalhada em múltiplos scripts sem orquestração**. É exatamente
+o problema que os projetos seguintes resolvem com Python, dbt e Airflow.
