@@ -1,0 +1,49 @@
+version: 2
+
+models:
+
+  - name: fato_transacoes
+    description: "Transacoes com chaves surrogate para todas as dims relevantes"
+    columns:
+      - name: cod_transacao
+        tests: [not_null, unique]
+      - name: sk_tempo
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_tempo')
+              field: sk_tempo
+      - name: sk_cliente
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_cliente')
+              field: sk_cliente
+      - name: sk_agencia
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_agencia')
+              field: sk_agencia
+
+  - name: fato_contas
+    description: "Snapshot corrente de contas (1 linha por conta)"
+    columns:
+      - name: num_conta
+        tests: [not_null, unique]
+      - name: sk_tempo
+        tests: [not_null]
+      - name: sk_cliente
+        tests: [not_null]
+      - name: sk_agencia
+        tests: [not_null]
+
+  - name: fato_propostas_credito
+    description: "Propostas de credito originais (1.996 registros — grain do gabarito)"
+    columns:
+      - name: cod_proposta
+        tests: [not_null, unique]
+      - name: status_proposta
+        tests:
+          - accepted_values:
+              values: ['Aprovada', 'Reprovada', 'Enviada', 'Em Analise', 'Cancelada']

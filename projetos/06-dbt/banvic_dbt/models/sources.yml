@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    description: "Camada Bronze — dados brutos ingeridos via COPY, todos os campos TEXT"
+    tables:
+      - name: clientes
+      - name: clientes_sinteticos
+      - name: contas
+      - name: transacoes
+      - name: agencias
+      - name: agencias_expandidas
+      - name: colaboradores
+      - name: colaboradores_expandidos
+      - name: propostas_credito
+      - name: propostas_sinteticas
+      - name: ipca
+      - name: ipca_projetado
+      - name: selic
+      - name: cdi
+      - name: dolar_ptax
+      - name: euro_ptax
+      - name: feriados
+      - name: municipios_ibge
+      - name: municipios
+      - name: populacao
+      - name: pib_municipal

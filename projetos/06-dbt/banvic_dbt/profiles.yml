@@ -1,0 +1,12 @@
+banvic:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host:     "{{ env_var('BANVIC_PG_HOST',     'banvic_postgres') }}"
+      port:     "{{ env_var('BANVIC_PG_PORT',     '5432') | int }}"
+      database: "{{ env_var('BANVIC_PG_DATABASE', 'banvic') }}"
+      user:     "{{ env_var('BANVIC_PG_USER',     'banvic_user') }}"
+      password: "{{ env_var('BANVIC_PG_PASSWORD', 'banvic_pass') }}"
+      schema: public
+      threads: 4

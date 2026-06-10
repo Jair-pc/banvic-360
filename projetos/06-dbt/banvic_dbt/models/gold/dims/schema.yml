@@ -1,0 +1,47 @@
+version: 2
+
+models:
+
+  - name: dim_tempo
+    description: "Calendario 2010-2026 enriquecido com Selic, CDI, PTAX e IPCA"
+    columns:
+      - name: sk_tempo
+        tests: [not_null, unique]
+      - name: data
+        tests: [not_null, unique]
+
+  - name: dim_cliente
+    description: "Clientes reais e sinteticos (SCD Tipo 2 simplificado — snapshot corrente)"
+    columns:
+      - name: sk_cliente
+        tests: [not_null, unique]
+      - name: cod_cliente
+        tests: [not_null, unique]
+      - name: faixa_etaria
+        tests:
+          - accepted_values:
+              values: ['18-24', '25-34', '35-44', '45-54', '55-64', '65+', 'Menor']
+
+  - name: dim_agencia
+    description: "Agencias com coordenadas e meta comercial"
+    columns:
+      - name: sk_agencia
+        tests: [not_null, unique]
+      - name: cod_agencia
+        tests: [not_null, unique]
+
+  - name: dim_colaborador
+    description: "Colaboradores com hierarquia e agencia principal"
+    columns:
+      - name: sk_colaborador
+        tests: [not_null, unique]
+      - name: cod_colaborador
+        tests: [not_null, unique]
+
+  - name: dim_canal
+    description: "Canais de transacao derivados das transacoes Silver"
+    columns:
+      - name: sk_canal
+        tests: [not_null, unique]
+      - name: nome_canal
+        tests: [not_null, unique]

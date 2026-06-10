@@ -1,0 +1,30 @@
+name: 'banvic_dbt'
+version: '1.0.0'
+config-version: 2
+
+profile: 'banvic'
+
+model-paths:    ["models"]
+macro-paths:    ["macros"]
+test-paths:     ["tests"]
+seed-paths:     ["seeds"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  banvic_dbt:
+    silver:
+      +materialized: table
+      +schema: silver
+    gold:
+      dims:
+        +materialized: table
+        +schema: gold
+      fatos:
+        +materialized: table
+        +schema: gold
+      marts:
+        +materialized: view
+        +schema: gold

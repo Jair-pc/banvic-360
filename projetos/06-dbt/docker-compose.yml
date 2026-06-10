@@ -1,0 +1,33 @@
+---
+# dbt Core via Docker — transforma Bronze -> Silver -> Gold e roda os testes
+#
+# Pre-requisito: banvic_postgres rodando com Bronze carregado
+#   docker compose up -d          (na raiz do projeto)
+#   python scripts/carga_bronze.py
+#
+# Uso:
+#   docker compose run --rm dbt run      # rodar todos os models
+#   docker compose run --rm dbt test     # rodar todos os testes
+#   docker compose run --rm dbt docs generate && dbt docs serve
+
+services:
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-postgres:1.8.0
+    container_name: banvic_dbt
+    working_dir: /banvic_dbt
+    volumes:
+      - ./banvic_dbt:/banvic_dbt
+    environment:
+      BANVIC_PG_HOST:     banvic_postgres
+      BANVIC_PG_PORT:     "5432"
+      BANVIC_PG_DATABASE: banvic
+      BANVIC_PG_USER:     banvic_user
+      BANVIC_PG_PASSWORD: banvic_pass
+    command: ["run", "--profiles-dir", "/banvic_dbt"]
+    networks:
+      - banvic_net
+
+networks:
+  banvic_net:
+    external: true
+    name: banvic_net

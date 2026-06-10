@@ -1,0 +1,63 @@
+version: 2
+
+models:
+
+  - name: clientes
+    description: "Clientes reais + sinteticos, deduplicados por cod_cliente (mais recente vence)"
+    columns:
+      - name: cod_cliente
+        description: "Chave natural do cliente"
+        tests: [not_null, unique]
+      - name: email
+        tests: [not_null]
+      - name: faixa_etaria
+        tests:
+          - accepted_values:
+              values: ['18-24', '25-34', '35-44', '45-54', '55-64', '65+', 'Menor']
+
+  - name: contas
+    description: "Contas bancarias com flag de atividade baseada no ultimo lancamento"
+    columns:
+      - name: num_conta
+        tests: [not_null, unique]
+      - name: cod_cliente
+        tests: [not_null]
+      - name: saldo_total
+        tests: [not_null]
+
+  - name: transacoes
+    description: "Transacoes tipadas com canal derivado do nome_transacao"
+    columns:
+      - name: cod_transacao
+        tests: [not_null, unique]
+      - name: num_conta
+        tests: [not_null]
+      - name: valor_transacao
+        tests: [not_null]
+      - name: canal
+        tests:
+          - accepted_values:
+              values: ['Pix', 'TED', 'DOC', 'Compra Credito', 'Compra Debito',
+                       'Saque', 'Deposito Especie', 'Pagamento Boleto', 'Outros']
+
+  - name: agencias
+    description: "Agencias com enriquecimento de coordenadas e regiao geografica"
+    columns:
+      - name: cod_agencia
+        tests: [not_null, unique]
+
+  - name: colaboradores
+    description: "Colaboradores expandidos com hierarquia + originais sem expansao"
+    columns:
+      - name: cod_colaborador
+        tests: [not_null, unique]
+
+  - name: propostas
+    description: "Propostas de credito reais + sinteticas"
+    columns:
+      - name: cod_proposta
+        tests: [not_null, unique]
+      - name: status_proposta
+        tests:
+          - accepted_values:
+              values: ['Aprovada', 'Reprovada', 'Enviada', 'Em Analise', 'Cancelada']
