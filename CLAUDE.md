@@ -140,7 +140,7 @@ python scripts/gerar_dados_sinteticos.py --etapa tudo --seed 42
 
 ### ✅ PROJETO 1 COMPLETO — SQL Puro (PostgreSQL) validado 7/7 KPIs
 
-**Próximo: Projeto 2 — Python + PostgreSQL (psycopg2, pandas, SQLAlchemy)**
+**Projetos 2-7 concluidos. Proximo: Projeto 8 — n8n**
 
 Sequência para recriar do zero (pipeline completo):
 ```bash
@@ -229,7 +229,7 @@ Todo projeto (SQL, Python, dbt, Databricks etc.) deve reproduzir exatamente este
 | 4 | Docker + Ambiente | ✅ (documentação) |
 | 5 | Airflow + Python | ✅ |
 | 6 | Modern Data Stack (dbt) | ✅ |
-| 7 | Databricks Lakehouse | ⏳ |
+| 7 | Databricks Lakehouse | ✅ |
 | 8 | n8n | ⏳ |
 | 9 | Microsoft Fabric + Power BI | ⏳ |
 

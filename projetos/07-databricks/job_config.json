@@ -1,0 +1,85 @@
+{
+  "_comment": "Configuracao para Databricks Jobs API (plano Standard ou superior).",
+  "_uso": "databricks jobs create --json @job_config.json",
+
+  "name": "banvic_pipeline",
+  "description": "BanVic 360 — Bronze -> Silver -> Gold + validacao 8 KPIs",
+  "max_concurrent_runs": 1,
+  "schedule": {
+    "quartz_cron_expression": "0 0 6 * * ?",
+    "timezone_id": "America/Sao_Paulo",
+    "pause_status": "PAUSED"
+  },
+  "job_clusters": [
+    {
+      "job_cluster_key": "banvic_cluster",
+      "new_cluster": {
+        "spark_version": "14.3.x-scala2.12",
+        "node_type_id": "Standard_DS3_v2",
+        "num_workers": 2,
+        "spark_conf": {
+          "spark.databricks.delta.preview.enabled": "true",
+          "spark.sql.shuffle.partitions": "8"
+        }
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "setup",
+      "description": "Cria databases e valida CSVs no DBFS",
+      "job_cluster_key": "banvic_cluster",
+      "notebook_task": {
+        "notebook_path": "/Workspace/banvic-360/projetos/07-databricks/notebooks/00_setup"
+      }
+    },
+    {
+      "task_key": "bronze",
+      "description": "CSV -> Delta Bronze (35 tabelas)",
+      "depends_on": [{ "task_key": "setup" }],
+      "job_cluster_key": "banvic_cluster",
+      "notebook_task": {
+        "notebook_path": "/Workspace/banvic-360/projetos/07-databricks/notebooks/01_bronze"
+      }
+    },
+    {
+      "task_key": "silver",
+      "description": "Bronze -> Silver (DQ + tipagem + UNION)",
+      "depends_on": [{ "task_key": "bronze" }],
+      "job_cluster_key": "banvic_cluster",
+      "notebook_task": {
+        "notebook_path": "/Workspace/banvic-360/projetos/07-databricks/notebooks/02_silver"
+      }
+    },
+    {
+      "task_key": "gold_dims",
+      "description": "Silver -> Gold (5 dimensoes)",
+      "depends_on": [{ "task_key": "silver" }],
+      "job_cluster_key": "banvic_cluster",
+      "notebook_task": {
+        "notebook_path": "/Workspace/banvic-360/projetos/07-databricks/notebooks/03_gold_dims"
+      }
+    },
+    {
+      "task_key": "gold_fatos",
+      "description": "Silver + Bronze -> Gold (3 fatos)",
+      "depends_on": [{ "task_key": "gold_dims" }],
+      "job_cluster_key": "banvic_cluster",
+      "notebook_task": {
+        "notebook_path": "/Workspace/banvic-360/projetos/07-databricks/notebooks/04_gold_fatos"
+      }
+    },
+    {
+      "task_key": "validar_kpis",
+      "description": "Calcula 8 KPIs e compara com gabarito",
+      "depends_on": [{ "task_key": "gold_fatos" }],
+      "job_cluster_key": "banvic_cluster",
+      "notebook_task": {
+        "notebook_path": "/Workspace/banvic-360/projetos/07-databricks/notebooks/05_validar_kpis"
+      }
+    }
+  ],
+  "email_notifications": {
+    "on_failure": ["jogospsilva@gmail.com"]
+  }
+}
