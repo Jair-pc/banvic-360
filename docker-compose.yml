@@ -18,6 +18,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - banvic_net
 
   pgadmin:
     image: dpage/pgadmin4
@@ -31,6 +33,13 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - banvic_net
 
 volumes:
   pgdata:
+
+networks:
+  banvic_net:
+    name: banvic_net
+    driver: bridge

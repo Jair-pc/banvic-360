@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pipeline>
+  <info>
+    <name>02_gold_dims</name>
+    <name_sync_with_filename>Y</name_sync_with_filename>
+    <description>BanVic 360 - Silver to Gold Dims: popula 6 dimensoes do star schema</description>
+    <extended_description/>
+    <pipeline_version/>
+    <pipeline_type>Normal</pipeline_type>
+    <parameters>
+    </parameters>
+    <capture_transform_performance>N</capture_transform_performance>
+    <transform_performance_capturing_delay>1000</transform_performance_capturing_delay>
+    <transform_performance_capturing_size_limit>100</transform_performance_capturing_size_limit>
+    <created_user>BanVic</created_user>
+    <created_date>2026/06/10 00:00:00.000</created_date>
+    <modified_user>BanVic</modified_user>
+    <modified_date>2026/06/10 00:00:00.000</modified_date>
+  </info>
+  <notes/>
+  <order/>
+  <transforms>
+
+    <transform>
+      <name>Trigger</name>
+      <type>RowGenerator</type>
+      <description>Gera 1 linha para acionar o pipeline</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <fields/>
+      <limit>1</limit>
+      <never_ending>N</never_ending>
+      <interval_in_ms>5000</interval_in_ms>
+      <row_time_field>now</row_time_field>
+      <last_time_field>FiveSecondsAgo</last_time_field>
+      <attributes/>
+      <GUI>
+        <xloc>64</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>01 dim_tempo enriquecimento</name>
+      <type>ExecSQL</type>
+      <description>Atualiza dim_tempo com Selic, CDI, PTAX, IPCA e Feriados</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>N</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[UPDATE gold.dim_tempo t SET taxa_selic = s.taxa_selic::NUMERIC FROM bronze.selic s WHERE t.data = s.data::DATE AND s.taxa_selic ~ '^-?[0-9]+\.?[0-9]*$'
+UPDATE gold.dim_tempo t SET taxa_cdi = c.taxa_cdi::NUMERIC FROM bronze.cdi c WHERE t.data = c.data::DATE AND c.taxa_cdi ~ '^-?[0-9]+\.?[0-9]*$'
+UPDATE gold.dim_tempo t SET cotacao_dolar = p.cotacao_media::NUMERIC FROM bronze.dolar_ptax p WHERE t.data = p.data::DATE AND p.cotacao_media ~ '^-?[0-9]+\.?[0-9]*$'
+UPDATE gold.dim_tempo t SET cotacao_euro = e.cotacao_media::NUMERIC FROM bronze.euro_ptax e WHERE t.data = e.data::DATE AND e.cotacao_media ~ '^-?[0-9]+\.?[0-9]*$'
+UPDATE gold.dim_tempo t SET ipca_mes = i.no_mes::NUMERIC, ipca_acum_12m = i.acumulado_12m::NUMERIC, indice_ipca = i.indice::NUMERIC FROM bronze.ipca i WHERE t.ano = i.ano::SMALLINT AND t.mes = i.mes_num::SMALLINT AND i.indice ~ '^-?[0-9]+\.?[0-9]*$'
+UPDATE gold.dim_tempo t SET eh_feriado = TRUE, nome_feriado = f.nome, tipo_feriado = f.tipo, eh_dia_util = FALSE FROM bronze.feriados f WHERE t.data = f.data::DATE]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>256</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>02 dim_municipio</name>
+      <type>ExecSQL</type>
+      <description>TRUNCATE + INSERT gold.dim_municipio a partir de Silver</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>N</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[TRUNCATE gold.dim_municipio CASCADE
+INSERT INTO gold.dim_municipio (codigo_ibge, municipio, uf, populacao, ano_populacao, pib_total, pib_per_capita, ano_pib) SELECT m.codigo_ibge::INTEGER, m.municipio, m.uf, MAX(p.populacao::INTEGER), MAX(p.ano::SMALLINT), MAX(pib.pib_total::BIGINT), MAX(pib.pib_per_capita::NUMERIC(14,2)), MAX(pib.ano::SMALLINT) FROM bronze.municipios m LEFT JOIN bronze.populacao p ON p.codigo_ibge = m.codigo_ibge AND p.ano = (SELECT MAX(ano) FROM bronze.populacao WHERE codigo_ibge = m.codigo_ibge) LEFT JOIN bronze.pib_municipal pib ON pib.codigo_ibge = m.codigo_ibge AND pib.ano = (SELECT MAX(ano) FROM bronze.pib_municipal WHERE codigo_ibge = m.codigo_ibge) WHERE m.codigo_ibge IS NOT NULL GROUP BY m.codigo_ibge, m.municipio, m.uf]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>448</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>03 dim_agencia</name>
+      <type>ExecSQL</type>
+      <description>TRUNCATE + INSERT gold.dim_agencia a partir de Silver.agencias_clean</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>N</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[TRUNCATE gold.dim_agencia CASCADE
+INSERT INTO gold.dim_agencia (cod_agencia, nome, tipo_agencia, cidade, uf, regiao, data_abertura, eh_ativa, meta_comercial_mensal, latitude, longitude) SELECT cod_agencia, nome, tipo_agencia, cidade, uf, regiao, data_abertura, eh_ativa, meta_comercial_mensal, latitude, longitude FROM silver.agencias_clean]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>640</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>04 dim_colaborador</name>
+      <type>ExecSQL</type>
+      <description>TRUNCATE + INSERT gold.dim_colaborador com FK sk_agencia_principal</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>N</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[TRUNCATE gold.dim_colaborador CASCADE
+INSERT INTO gold.dim_colaborador (cod_colaborador, primeiro_nome, ultimo_nome, cpf, email, data_nascimento, cargo, departamento, nivel_hierarquico, salario_base, data_admissao, data_demissao, eh_ativo, sk_agencia_principal, cidade, uf) SELECT c.cod_colaborador, c.primeiro_nome, c.ultimo_nome, c.cpf, c.email, c.data_nascimento, c.cargo, c.departamento, c.nivel_hierarquico, c.salario_base, c.data_admissao, c.data_demissao, c.eh_ativo, a.sk_agencia, c.cidade, c.uf FROM silver.colaboradores_clean c LEFT JOIN gold.dim_agencia a ON a.cod_agencia = c.cod_agencia]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>832</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>05 dim_cliente</name>
+      <type>ExecSQL</type>
+      <description>TRUNCATE + INSERT dim_cliente (originais + sinteticos) com deduplicacao SCD2</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>N</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[TRUNCATE gold.dim_cliente CASCADE
+INSERT INTO gold.dim_cliente (cod_cliente, primeiro_nome, ultimo_nome, cpf, tipo_pessoa, email, data_nascimento, idade, faixa_etaria, cep, data_inclusao, data_inicio_vigencia, data_fim_vigencia, eh_registro_atual) SELECT cod_cliente, primeiro_nome, ultimo_nome, cpf_formatado, tipo_pessoa, email, data_nascimento, idade, faixa_etaria, cep_digits, data_inclusao, data_inclusao, '9999-12-31'::DATE, TRUE FROM silver.clientes_clean
+INSERT INTO gold.dim_cliente (cod_cliente, primeiro_nome, ultimo_nome, tipo_pessoa, email, data_nascimento, idade, faixa_etaria, cidade, uf, renda_mensal, faixa_renda, profissao, escolaridade, score_credito, faixa_score, data_inclusao, data_inicio_vigencia, data_fim_vigencia, eh_registro_atual) SELECT cod_cliente, primeiro_nome, ultimo_nome, tipo_pessoa, email, data_nascimento, idade, faixa_etaria, cidade, uf, renda_mensal, faixa_renda, profissao, escolaridade, score_credito, faixa_score, data_inclusao, data_inclusao, '9999-12-31'::DATE, TRUE FROM silver.clientes_sinteticos_clean
+DELETE FROM gold.dim_cliente WHERE sk_cliente IN (SELECT sk_cliente FROM (SELECT sk_cliente, ROW_NUMBER() OVER (PARTITION BY cod_cliente ORDER BY sk_cliente DESC) AS rn FROM gold.dim_cliente WHERE eh_registro_atual = TRUE) ranked WHERE rn > 1)]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>1024</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>06 dim_canal</name>
+      <type>ExecSQL</type>
+      <description>TRUNCATE + INSERT gold.dim_canal derivado das transacoes Silver</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>N</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[TRUNCATE gold.dim_canal CASCADE
+INSERT INTO gold.dim_canal (nome_canal, tipo_canal) SELECT DISTINCT canal AS nome_canal, CASE WHEN canal IN ('Pix','TED','DOC') THEN 'Transferencia' WHEN canal IN ('Compra Credito','Compra Debito') THEN 'Cartao' WHEN canal IN ('Saque','Deposito Especie') THEN 'Caixa' WHEN canal = 'Pagamento Boleto' THEN 'Boleto' ELSE 'Digital' END AS tipo_canal FROM silver.transacoes_clean ORDER BY nome_canal]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>1216</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>Fim</name>
+      <type>Dummy</type>
+      <description>Descarta o fluxo de saida</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <attributes/>
+      <GUI>
+        <xloc>1408</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+  </transforms>
+
+  <transform_error_handling/>
+
+  <hops>
+    <hop><from>Trigger</from><to>01 dim_tempo enriquecimento</to><enabled>Y</enabled></hop>
+    <hop><from>01 dim_tempo enriquecimento</from><to>02 dim_municipio</to><enabled>Y</enabled></hop>
+    <hop><from>02 dim_municipio</from><to>03 dim_agencia</to><enabled>Y</enabled></hop>
+    <hop><from>03 dim_agencia</from><to>04 dim_colaborador</to><enabled>Y</enabled></hop>
+    <hop><from>04 dim_colaborador</from><to>05 dim_cliente</to><enabled>Y</enabled></hop>
+    <hop><from>05 dim_cliente</from><to>06 dim_canal</to><enabled>Y</enabled></hop>
+    <hop><from>06 dim_canal</from><to>Fim</to><enabled>Y</enabled></hop>
+  </hops>
+
+  <attributes/>
+</pipeline>

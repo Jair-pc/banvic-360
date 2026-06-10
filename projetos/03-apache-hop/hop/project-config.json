@@ -1,0 +1,40 @@
+{
+  "name": "banvic",
+  "description": "BanVic 360 - Projeto 3: Apache Hop",
+  "configFilename": "${PROJECT_HOME}/project-config.json",
+  "defaultDataSetCsvFolder": "${PROJECT_HOME}/datasets",
+  "enforcingExecutionId": false,
+  "namingConvention": "NONE",
+  "parentProjectName": null,
+  "metadata_base_folder": "${PROJECT_HOME}/metadata",
+  "unit_tests_base_path": "${PROJECT_HOME}/unit_tests",
+  "datasets_base_path": "${PROJECT_HOME}/datasets",
+  "runs_base_path": "${PROJECT_HOME}/runs",
+  "parameters": [
+    {
+      "name": "HOP_PG_HOST",
+      "default_value": "banvic_postgres",
+      "description": "Host do PostgreSQL"
+    },
+    {
+      "name": "HOP_PG_PORT",
+      "default_value": "5432",
+      "description": "Porta do PostgreSQL"
+    },
+    {
+      "name": "HOP_PG_DATABASE",
+      "default_value": "banvic",
+      "description": "Nome do banco de dados"
+    },
+    {
+      "name": "HOP_PG_USER",
+      "default_value": "banvic_user",
+      "description": "Usuario PostgreSQL"
+    },
+    {
+      "name": "HOP_PG_PASSWORD",
+      "default_value": "banvic_pass",
+      "description": "Senha PostgreSQL"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "banvic_pg",
+  "pluginId": "POSTGRESQL",
+  "hostname": "${HOP_PG_HOST}",
+  "port": "${HOP_PG_PORT}",
+  "databaseName": "${HOP_PG_DATABASE}",
+  "username": "${HOP_PG_USER}",
+  "password": "${HOP_PG_PASSWORD}",
+  "manualUrl": false,
+  "attributes": {
+    "PORT_NUMBER": "${HOP_PG_PORT}",
+    "SUPPORTS_BOOLEAN_DATA_TYPE": "Y",
+    "SUPPORTS_TIMESTAMP_DATA_TYPE": "Y",
+    "FORCE_IDENTIFIERS_TO_LOWERCASE": "N",
+    "FORCE_IDENTIFIERS_TO_UPPERCASE": "N",
+    "PRESERVE_RESERVED_WORD_CASE": "N",
+    "QUOTE_ALL_FIELDS": "N",
+    "USE_POOLING": "N"
+  }
+}

@@ -1,0 +1,631 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pipeline>
+  <info>
+    <name>01_silver</name>
+    <name_sync_with_filename>Y</name_sync_with_filename>
+    <description>BanVic 360 - Bronze to Silver: limpeza, tipagem e enriquecimento</description>
+    <extended_description/>
+    <pipeline_version/>
+    <pipeline_type>Normal</pipeline_type>
+    <parameters>
+    </parameters>
+    <capture_transform_performance>N</capture_transform_performance>
+    <transform_performance_capturing_delay>1000</transform_performance_capturing_delay>
+    <transform_performance_capturing_size_limit>100</transform_performance_capturing_size_limit>
+    <created_user>BanVic</created_user>
+    <created_date>2026/06/10 00:00:00.000</created_date>
+    <modified_user>BanVic</modified_user>
+    <modified_date>2026/06/10 00:00:00.000</modified_date>
+  </info>
+  <notes/>
+  <order/>
+  <transforms>
+
+    <!-- Gerador de trigger: 1 linha para acionar os steps ExecSQL -->
+    <transform>
+      <name>Trigger</name>
+      <type>RowGenerator</type>
+      <description>Gera 1 linha para acionar o pipeline</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <fields/>
+      <limit>1</limit>
+      <never_ending>N</never_ending>
+      <interval_in_ms>5000</interval_in_ms>
+      <row_time_field>now</row_time_field>
+      <last_time_field>FiveSecondsAgo</last_time_field>
+      <attributes/>
+      <GUI>
+        <xloc>64</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>01 clientes_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.clientes -> Silver.clientes_clean (tipagem, idade, faixa etaria)</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.clientes_clean AS
+SELECT
+    cod_cliente::INTEGER                                            AS cod_cliente,
+    TRIM(primeiro_nome)                                             AS primeiro_nome,
+    TRIM(ultimo_nome)                                               AS ultimo_nome,
+    LOWER(TRIM(email))                                              AS email,
+    UPPER(TRIM(tipo_cliente))                                       AS tipo_pessoa,
+    data_inclusao::DATE                                             AS data_inclusao,
+    REGEXP_REPLACE(cpfcnpj, '[^0-9]', '', 'g')                     AS cpf_digits,
+    cpfcnpj                                                         AS cpf_formatado,
+    data_nascimento::DATE                                           AS data_nascimento,
+    EXTRACT(YEAR FROM AGE(data_nascimento::DATE))::SMALLINT         AS idade,
+    CASE
+        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 18 AND 24 THEN '18-24'
+        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 25 AND 34 THEN '25-34'
+        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 35 AND 44 THEN '35-44'
+        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 45 AND 54 THEN '45-54'
+        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 55 AND 64 THEN '55-64'
+        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) >= 65             THEN '65+'
+        ELSE 'Menor'
+    END                                                             AS faixa_etaria,
+    TRIM(endereco)                                                  AS endereco,
+    REGEXP_REPLACE(cep, '[^0-9]', '', 'g')                         AS cep_digits,
+    NOW()                                                           AS _silver_ts
+FROM bronze.clientes
+WHERE cod_cliente IS NOT NULL
+  AND cpfcnpj IS NOT NULL]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>256</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>02 clientes_sinteticos_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.clientes_sinteticos -> Silver.clientes_sinteticos_clean</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.clientes_sinteticos_clean AS
+SELECT
+    cod_cliente::INTEGER            AS cod_cliente,
+    TRIM(primeiro_nome)             AS primeiro_nome,
+    TRIM(ultimo_nome)               AS ultimo_nome,
+    LOWER(TRIM(email))              AS email,
+    UPPER(tipo_cliente)             AS tipo_pessoa,
+    data_inclusao::DATE             AS data_inclusao,
+    cpfcnpj                         AS cpf_formatado,
+    data_nascimento::DATE           AS data_nascimento,
+    idade::SMALLINT                 AS idade,
+    faixa_etaria,
+    cidade,
+    UPPER(uf)                       AS uf,
+    cep,
+    renda_mensal::NUMERIC(12,2)     AS renda_mensal,
+    faixa_renda,
+    profissao,
+    escolaridade,
+    score_credito::SMALLINT         AS score_credito,
+    faixa_score,
+    NOW()                           AS _silver_ts
+FROM bronze.clientes_sinteticos
+WHERE cod_cliente IS NOT NULL]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>448</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>03 contas_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.contas -> Silver.contas_clean (saldos arredondados, flag ativa relativa ao dataset)</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.contas_clean AS
+SELECT
+    num_conta::INTEGER                          AS num_conta,
+    cod_cliente::INTEGER                        AS cod_cliente,
+    cod_agencia::INTEGER                        AS cod_agencia,
+    cod_colaborador::INTEGER                    AS cod_colaborador,
+    TRIM(tipo_conta)                            AS tipo_conta,
+    data_abertura::DATE                         AS data_abertura,
+    ROUND(saldo_total::NUMERIC, 2)              AS saldo_total,
+    ROUND(saldo_disponivel::NUMERIC, 2)         AS saldo_disponivel,
+    data_ultimo_lancamento::DATE                AS data_ultimo_lancamento,
+    CASE WHEN data_ultimo_lancamento::DATE >=
+              (SELECT MAX(data_ultimo_lancamento::DATE) FROM bronze.contas) - 90
+         THEN TRUE ELSE FALSE END               AS eh_conta_ativa,
+    NOW()                                       AS _silver_ts
+FROM bronze.contas
+WHERE num_conta IS NOT NULL
+  AND saldo_total ~ '^-?[0-9]+\.?[0-9]*$']]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>640</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>04 transacoes_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.transacoes -> Silver.transacoes_clean (canal derivado do nome)</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.transacoes_clean AS
+SELECT
+    cod_transacao::INTEGER              AS cod_transacao,
+    num_conta::INTEGER                  AS num_conta,
+    data_transacao::TIMESTAMP           AS data_transacao,
+    DATE_TRUNC('month', data_transacao::TIMESTAMP)::DATE AS mes_referencia,
+    TRIM(nome_transacao)                AS nome_transacao,
+    valor_transacao::NUMERIC(14,2)      AS valor_transacao,
+    ABS(valor_transacao::NUMERIC)       AS valor_absoluto,
+    CASE WHEN valor_transacao::NUMERIC >= 0 THEN TRUE ELSE FALSE END AS flag_credito,
+    CASE
+        WHEN nome_transacao ILIKE '%pix%'      THEN 'Pix'
+        WHEN nome_transacao ILIKE '%ted%'      THEN 'TED'
+        WHEN nome_transacao ILIKE '%doc%'      THEN 'DOC'
+        WHEN nome_transacao ILIKE '%credito%'  THEN 'Compra Credito'
+        WHEN nome_transacao ILIKE '%debito%'   THEN 'Compra Debito'
+        WHEN nome_transacao ILIKE '%saque%'    THEN 'Saque'
+        WHEN nome_transacao ILIKE '%deposito%' THEN 'Deposito Especie'
+        WHEN nome_transacao ILIKE '%boleto%'   THEN 'Pagamento Boleto'
+        ELSE 'Outros'
+    END                                 AS canal,
+    NOW()                               AS _silver_ts
+FROM bronze.transacoes
+WHERE cod_transacao IS NOT NULL
+  AND valor_transacao ~ '^-?[0-9]+\.?[0-9]*$'
+  AND valor_transacao::NUMERIC <> 0]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>832</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>05 agencias_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.agencias + expandidas -> Silver.agencias_clean (regiao, lat/lon)</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.agencias_clean AS
+SELECT
+    a.cod_agencia::INTEGER          AS cod_agencia,
+    TRIM(a.nome)                    AS nome,
+    UPPER(TRIM(a.tipo_agencia))     AS tipo_agencia,
+    a.cidade,
+    UPPER(a.uf)                     AS uf,
+    CASE UPPER(a.uf)
+        WHEN 'SP' THEN 'Sudeste' WHEN 'RJ' THEN 'Sudeste'
+        WHEN 'MG' THEN 'Sudeste' WHEN 'ES' THEN 'Sudeste'
+        WHEN 'RS' THEN 'Sul'     WHEN 'SC' THEN 'Sul' WHEN 'PR' THEN 'Sul'
+        WHEN 'BA' THEN 'Nordeste' WHEN 'PE' THEN 'Nordeste'
+        WHEN 'CE' THEN 'Nordeste' WHEN 'MA' THEN 'Nordeste'
+        WHEN 'PB' THEN 'Nordeste' WHEN 'RN' THEN 'Nordeste'
+        WHEN 'AL' THEN 'Nordeste' WHEN 'SE' THEN 'Nordeste' WHEN 'PI' THEN 'Nordeste'
+        WHEN 'GO' THEN 'Centro-Oeste' WHEN 'MT' THEN 'Centro-Oeste'
+        WHEN 'MS' THEN 'Centro-Oeste' WHEN 'DF' THEN 'Centro-Oeste'
+        WHEN 'AM' THEN 'Norte' WHEN 'PA' THEN 'Norte'
+        WHEN 'AC' THEN 'Norte' WHEN 'RO' THEN 'Norte'
+        WHEN 'RR' THEN 'Norte' WHEN 'AP' THEN 'Norte' WHEN 'TO' THEN 'Norte'
+        ELSE 'Sudeste'
+    END                             AS regiao,
+    a.data_abertura::DATE           AS data_abertura,
+    COALESCE(e.meta_comercial_mensal::NUMERIC, 500000) AS meta_comercial_mensal,
+    COALESCE(e.latitude::NUMERIC, NULL)                AS latitude,
+    COALESCE(e.longitude::NUMERIC, NULL)               AS longitude,
+    TRUE                            AS eh_ativa,
+    NOW()                           AS _silver_ts
+FROM bronze.agencias a
+LEFT JOIN bronze.agencias_expandidas e ON e.cod_agencia = a.cod_agencia
+WHERE a.cod_agencia IS NOT NULL]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>1024</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>06 colaboradores_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.colaboradores_expandidos UNION originais -> Silver.colaboradores_clean</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.colaboradores_clean AS
+SELECT
+    e.cod_colaborador::INTEGER      AS cod_colaborador,
+    e.primeiro_nome,
+    e.ultimo_nome,
+    LOWER(e.email)                  AS email,
+    e.cpf,
+    e.data_nascimento::DATE         AS data_nascimento,
+    e.cidade,
+    UPPER(e.uf)                     AS uf,
+    e.regiao,
+    e.cargo,
+    e.nivel_hierarquico::SMALLINT   AS nivel_hierarquico,
+    e.departamento,
+    e.salario_base::NUMERIC(12,2)   AS salario_base,
+    e.cod_agencia::INTEGER          AS cod_agencia,
+    e.data_admissao::DATE           AS data_admissao,
+    NULLIF(e.data_demissao, '')::DATE AS data_demissao,
+    e.eh_ativo::BOOLEAN             AS eh_ativo,
+    NOW()                           AS _silver_ts
+FROM bronze.colaboradores_expandidos e
+WHERE e.cod_colaborador IS NOT NULL
+UNION ALL
+SELECT
+    c.cod_colaborador::INTEGER,
+    c.primeiro_nome, c.ultimo_nome,
+    LOWER(c.email), c.cpf,
+    c.data_nascimento::DATE,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL::DATE, NULL::DATE, TRUE, NOW()
+FROM bronze.colaboradores c
+WHERE NOT EXISTS (
+    SELECT 1 FROM bronze.colaboradores_expandidos e
+    WHERE e.cod_colaborador = c.cod_colaborador
+)]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>1216</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>07 propostas_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.propostas_credito UNION sinteticas -> Silver.propostas_clean</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.propostas_clean AS
+SELECT
+    cod_proposta::INTEGER               AS cod_proposta,
+    cod_cliente::INTEGER                AS cod_cliente,
+    cod_colaborador::INTEGER            AS cod_colaborador,
+    data_entrada_proposta::DATE         AS data_entrada_proposta,
+    taxa_juros_mensal::NUMERIC(8,6)     AS taxa_juros_mensal,
+    valor_proposta::NUMERIC(14,2)       AS valor_proposta,
+    valor_financiamento::NUMERIC(14,2)  AS valor_financiamento,
+    valor_entrada::NUMERIC(14,2)        AS valor_entrada,
+    valor_prestacao::NUMERIC(14,2)      AS valor_prestacao,
+    quantidade_parcelas::SMALLINT       AS quantidade_parcelas,
+    COALESCE(NULLIF(carencia,'')::SMALLINT, 0) AS carencia_dias,
+    TRIM(status_proposta)               AS status_proposta,
+    NOW()                               AS _silver_ts
+FROM bronze.propostas_credito
+WHERE cod_proposta IS NOT NULL
+  AND valor_proposta ~ '^[0-9]+\.?[0-9]*$'
+UNION ALL
+SELECT
+    cod_proposta::INTEGER,
+    cod_cliente::INTEGER,
+    cod_colaborador::INTEGER,
+    data_entrada_proposta::DATE,
+    taxa_juros_mensal::NUMERIC(8,6),
+    valor_proposta::NUMERIC(14,2),
+    valor_financiamento::NUMERIC(14,2),
+    valor_entrada::NUMERIC(14,2),
+    valor_prestacao::NUMERIC(14,2),
+    quantidade_parcelas::SMALLINT,
+    COALESCE(NULLIF(carencia,'')::SMALLINT, 0),
+    TRIM(status_proposta),
+    NOW()
+FROM bronze.propostas_sinteticas
+WHERE cod_proposta IS NOT NULL]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>1408</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>08 ipca_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.ipca UNION projetado -> Silver.ipca_clean</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.ipca_clean AS
+SELECT
+    data::DATE                      AS data,
+    ano::SMALLINT                   AS ano,
+    mes,
+    mes_num::SMALLINT               AS mes_num,
+    indice::NUMERIC(10,2)           AS indice,
+    no_mes::NUMERIC(6,2)            AS variacao_mensal,
+    acumulado_12m::NUMERIC(6,2)     AS acumulado_12m,
+    acumulado_ano::NUMERIC(6,2)     AS acumulado_ano,
+    'REAL'                          AS tipo,
+    NOW()                           AS _silver_ts
+FROM bronze.ipca
+WHERE data ~ '^\d{4}-\d{2}-\d{2}$'
+UNION ALL
+SELECT
+    data::DATE, ano::SMALLINT, mes, mes_num::SMALLINT,
+    indice::NUMERIC(10,2), no_mes::NUMERIC(6,2),
+    acumulado_12m::NUMERIC(6,2), acumulado_ano::NUMERIC(6,2),
+    tipo, NOW()
+FROM bronze.ipca_projetado
+WHERE tipo = 'PROJECAO']]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>1600</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>09 selic_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.selic UNION projetada -> Silver.selic_clean (taxa anualizada)</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.selic_clean AS
+SELECT
+    data::DATE                              AS data,
+    taxa_selic::NUMERIC(10,6)               AS taxa_selic,
+    taxa_selic::NUMERIC * 252 * 100         AS taxa_selic_aa,
+    'REAL'                                  AS tipo,
+    NOW()                                   AS _silver_ts
+FROM bronze.selic
+UNION ALL
+SELECT
+    data::DATE,
+    taxa_selic::NUMERIC(10,6),
+    taxa_selic::NUMERIC * 252 * 100,
+    tipo,
+    NOW()
+FROM bronze.selic_projetada
+WHERE tipo = 'PROJECAO']]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>1792</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>10 municipios_clean</name>
+      <type>ExecSQL</type>
+      <description>Bronze.municipios + populacao + pib -> Silver.municipios_clean</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>Y</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE TABLE silver.municipios_clean AS
+SELECT
+    m.codigo_ibge::INTEGER          AS codigo_ibge,
+    m.municipio,
+    UPPER(m.uf)                     AS uf,
+    CASE UPPER(m.uf)
+        WHEN 'SP' THEN 'Sudeste' WHEN 'RJ' THEN 'Sudeste'
+        WHEN 'MG' THEN 'Sudeste' WHEN 'ES' THEN 'Sudeste'
+        WHEN 'RS' THEN 'Sul' WHEN 'SC' THEN 'Sul' WHEN 'PR' THEN 'Sul'
+        WHEN 'BA' THEN 'Nordeste' WHEN 'PE' THEN 'Nordeste'
+        WHEN 'CE' THEN 'Nordeste' WHEN 'MA' THEN 'Nordeste'
+        WHEN 'PB' THEN 'Nordeste' WHEN 'RN' THEN 'Nordeste'
+        WHEN 'AL' THEN 'Nordeste' WHEN 'SE' THEN 'Nordeste' WHEN 'PI' THEN 'Nordeste'
+        WHEN 'GO' THEN 'Centro-Oeste' WHEN 'MT' THEN 'Centro-Oeste'
+        WHEN 'MS' THEN 'Centro-Oeste' WHEN 'DF' THEN 'Centro-Oeste'
+        WHEN 'AM' THEN 'Norte' WHEN 'PA' THEN 'Norte'
+        WHEN 'AC' THEN 'Norte' WHEN 'RO' THEN 'Norte'
+        WHEN 'RR' THEN 'Norte' WHEN 'AP' THEN 'Norte' WHEN 'TO' THEN 'Norte'
+        ELSE 'Sudeste'
+    END                             AS regiao,
+    p.populacao::INTEGER            AS populacao,
+    p.ano::SMALLINT                 AS ano_populacao,
+    pib.pib_total::BIGINT           AS pib_total,
+    pib.pib_per_capita::NUMERIC     AS pib_per_capita,
+    pib.ano::SMALLINT               AS ano_pib,
+    NOW()                           AS _silver_ts
+FROM bronze.municipios m
+LEFT JOIN bronze.populacao p
+       ON p.codigo_ibge = m.codigo_ibge AND p.ano = '2022'
+LEFT JOIN bronze.pib_municipal pib
+       ON pib.codigo_ibge = m.codigo_ibge AND pib.ano = '2021']]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>1984</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>11 Indices Silver</name>
+      <type>ExecSQL</type>
+      <description>Cria indices nas tabelas Silver para performance nas queries Gold</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <connection>banvic_pg</connection>
+      <execute_each_row>N</execute_each_row>
+      <single_statement>N</single_statement>
+      <replace_variables>Y</replace_variables>
+      <quoteString>N</quoteString>
+      <sql><![CDATA[CREATE INDEX IF NOT EXISTS idx_sc_cod    ON silver.clientes_clean(cod_cliente)
+CREATE INDEX IF NOT EXISTS idx_sc_cpf    ON silver.clientes_clean(cpf_digits)
+CREATE INDEX IF NOT EXISTS idx_sc_faixa  ON silver.clientes_clean(faixa_etaria)
+CREATE INDEX IF NOT EXISTS idx_cv_num    ON silver.contas_clean(num_conta)
+CREATE INDEX IF NOT EXISTS idx_cv_cli    ON silver.contas_clean(cod_cliente)
+CREATE INDEX IF NOT EXISTS idx_cv_ag     ON silver.contas_clean(cod_agencia)
+CREATE INDEX IF NOT EXISTS idx_tc_data   ON silver.transacoes_clean(data_transacao)
+CREATE INDEX IF NOT EXISTS idx_tc_mes    ON silver.transacoes_clean(mes_referencia)
+CREATE INDEX IF NOT EXISTS idx_tc_conta  ON silver.transacoes_clean(num_conta)
+CREATE INDEX IF NOT EXISTS idx_tc_canal  ON silver.transacoes_clean(canal)
+CREATE INDEX IF NOT EXISTS idx_mun_ibge  ON silver.municipios_clean(codigo_ibge)
+CREATE INDEX IF NOT EXISTS idx_mun_uf    ON silver.municipios_clean(uf)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ipca_data  ON silver.ipca_clean(data)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_selic_data ON silver.selic_clean(data)]]></sql>
+      <set_params>N</set_params>
+      <attributes/>
+      <GUI>
+        <xloc>2176</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+    <transform>
+      <name>Fim</name>
+      <type>Dummy</type>
+      <description>Descarta o fluxo de saida</description>
+      <distribute>Y</distribute>
+      <custom_distribution/>
+      <copies>1</copies>
+      <partitioning>
+        <method>none</method>
+        <schema_name/>
+      </partitioning>
+      <attributes/>
+      <GUI>
+        <xloc>2368</xloc>
+        <yloc>208</yloc>
+      </GUI>
+    </transform>
+
+  </transforms>
+
+  <transform_error_handling/>
+
+  <hops>
+    <hop><from>Trigger</from><to>01 clientes_clean</to><enabled>Y</enabled></hop>
+    <hop><from>01 clientes_clean</from><to>02 clientes_sinteticos_clean</to><enabled>Y</enabled></hop>
+    <hop><from>02 clientes_sinteticos_clean</from><to>03 contas_clean</to><enabled>Y</enabled></hop>
+    <hop><from>03 contas_clean</from><to>04 transacoes_clean</to><enabled>Y</enabled></hop>
+    <hop><from>04 transacoes_clean</from><to>05 agencias_clean</to><enabled>Y</enabled></hop>
+    <hop><from>05 agencias_clean</from><to>06 colaboradores_clean</to><enabled>Y</enabled></hop>
+    <hop><from>06 colaboradores_clean</from><to>07 propostas_clean</to><enabled>Y</enabled></hop>
+    <hop><from>07 propostas_clean</from><to>08 ipca_clean</to><enabled>Y</enabled></hop>
+    <hop><from>08 ipca_clean</from><to>09 selic_clean</to><enabled>Y</enabled></hop>
+    <hop><from>09 selic_clean</from><to>10 municipios_clean</to><enabled>Y</enabled></hop>
+    <hop><from>10 municipios_clean</from><to>11 Indices Silver</to><enabled>Y</enabled></hop>
+    <hop><from>11 Indices Silver</from><to>Fim</to><enabled>Y</enabled></hop>
+  </hops>
+
+  <attributes/>
+</pipeline>
