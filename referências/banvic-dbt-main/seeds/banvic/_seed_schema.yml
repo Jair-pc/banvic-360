@@ -1,0 +1,92 @@
+version: 2
+
+seeds:
+  - name: agencias
+    config:
+      quote_columns: false
+      column_types: 
+        COD_AGENCIA: string
+        NOME: string
+        ENDERECO: string
+        CIDADE: string
+        UF: string
+        DATA_ABERTURA: string
+        TIPO_AGENCIA: string
+  
+  - name: clientes
+    config:
+      quote_columns: false
+      column_types: 
+        COD_CLIENTE: string
+        PRIMEIRO_NOME: string
+        ULTIMO_NOME: string
+        EMAIL: string
+        TIPO_CLIENTE: string
+        DATA_INCLUSAO: string
+        CPFCNPJ: string
+        DATA_NASCIMENTO: string
+        ENDERECO: string
+        CEP: string
+
+  - name: colaborador_agencia
+    config:
+      quote_columns: false
+      column_types:
+        COD_COLABORADOR: string
+        COD_AGENCIA: string
+  
+  - name: colaboradores
+    config:
+      quote_columns: false
+      column_types:
+        COD_COLABORADOR: string
+        PRIMEIRO_NOME: string
+        ULTIMO_NOME: string
+        EMAIL: string
+        CPF: string
+        DATA_NASCIMENTO: string
+        ENDERECO: string
+        CEP: string
+        COD_GERENTE: string
+  
+  - name: contas
+    config:
+      quote_columns: false
+      column_types:
+        NUM_CONTA: string
+        COD_CLIENTE: string
+        COD_AGENCIA: string
+        COD_COLABORADOR: string
+        TIPO_CONTA: string
+        DATA_ABERTURA: string
+        SALDO_TOTAL: string
+        SALDO_DISPONIVEL: string
+        DATA_ULTIMO_LANCAMENTO: string
+
+  - name: propostas_credito
+    config:
+      quote_columns: false
+      column_types:
+        COD_PROPOSTA: string
+        COD_CLIENTE: string
+        COD_COLABORADOR: string
+        DATA_ENTRADA_PROPOSTA: string
+        TAXA_JUROS_MENSAL: string
+        VALOR_PROPOSTA: string
+        VALOR_FINANCIAMENTO: string
+        VALOR_ENTRADA: string
+        VALOR_PRESTACAO: string
+        QUANTIDADE_PARCELAS: string
+        CARENCIA: string
+        STATUS_PROPOSTA: string
+  
+  - name: transacoes
+    config:
+      quote_columns: false
+      column_types:
+        COD_TRANSACAO: string
+        NUM_CONTA: string
+        DATA_TRANSACAO: string
+        NOME_TRANSACAO: string
+        VALOR_TRANSACAO: string
+

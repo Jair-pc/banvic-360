@@ -1,0 +1,53 @@
+# Ambiente Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Dados sintéticos gerados (grandes, regeneráveis via script)
+data/sintetico/
+data/banvic/transacoes.csv
+
+# Dados externos (re-baixáveis via download_datasets.py)
+external_data/
+
+# PostgreSQL / Docker volumes
+postgres_data/
+*.dump
+*.sql.gz
+
+# Gabarito gerado (regenerável via gerar_gabarito_gold.py)
+docs/gabarito/gabarito.json
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Temporários
+*.tmp
+*.bak

@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: banvic_postgres
+    environment:
+      POSTGRES_DB: ${PG_DB:-banvic}
+      POSTGRES_USER: ${PG_USER:-banvic_user}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-banvic_pass}
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-banvic_user} -d ${PG_DB:-banvic}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: banvic_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@banvic.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
