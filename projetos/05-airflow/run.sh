@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "====================================================="
+echo " BanVic 360 - Projeto 5: Airflow"
+echo "====================================================="
+
+echo ""
+echo "[PRE] Verificando banvic_postgres..."
+if ! docker ps --filter "name=banvic_postgres" --filter "status=running" --format "{{.Names}}" | grep -q banvic_postgres; then
+    echo "[ERRO] banvic_postgres nao esta rodando."
+    echo "       Execute na raiz do projeto:"
+    echo "         docker compose up -d"
+    echo "         python scripts/carga_bronze.py"
+    exit 1
+fi
+echo "[OK] banvic_postgres detectado."
+
+# Necessario em Linux para que o Airflow crie arquivos de log com o usuario correto
+export AIRFLOW_UID=$(id -u)
+
+echo ""
+echo "[1/2] Inicializando banco de metadados do Airflow (primeira vez)..."
+docker compose up airflow-init || echo "[AVISO] Init retornou erro - pode ser re-execucao, continuando..."
+
+echo ""
+echo "[2/2] Subindo Airflow (webserver + scheduler)..."
+docker compose up -d airflow-webserver airflow-scheduler
+
+echo ""
+echo "[OK] Airflow disponivel em http://localhost:8080"
+echo "     Login: admin / admin"
+echo ""
+echo "     Para acionar a DAG manualmente:"
+echo "       Abra o Airflow UI, ative a DAG 'banvic_pipeline' e clique em Trigger."
+echo ""
+echo "     Para acompanhar os logs:"
+echo "       docker logs -f banvic_airflow_scheduler"
+echo "====================================================="

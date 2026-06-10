@@ -1,0 +1,91 @@
+---
+# Airflow com LocalExecutor — banco de metadados interno separado do BanVic
+# Conecta-se ao banvic_net para enxergar o banvic_postgres pelo hostname.
+#
+# Primeiro uso:
+#   docker compose up airflow-init
+#   docker compose up -d
+#
+# UI: http://localhost:8080  (admin / admin)
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.9.2
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow_meta/airflow
+    AIRFLOW__CORE__FERNET_KEY: ""
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+    # Conexao BanVic — disponivel no DAG como PostgresHook(conn_id="banvic_pg")
+    AIRFLOW_CONN_BANVIC_PG: postgresql://banvic_user:banvic_pass@banvic_postgres:5432/banvic
+    # Pacotes extras necessarios para o provider postgres
+    _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-postgres"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ../../:/opt/banvic:ro          # raiz do projeto — SQL files, gabarito.json
+  depends_on: &airflow-common-depends-on
+    airflow_meta:
+      condition: service_healthy
+  networks:
+    - banvic_net
+    - airflow_internal
+
+services:
+
+  airflow_meta:
+    image: postgres:15
+    container_name: banvic_airflow_meta
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airflow_internal
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: banvic_airflow_init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin --password admin \
+          --firstname Admin --lastname BanVic \
+          --role Admin --email admin@banvic.local
+        echo "Init concluido."
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: banvic_airflow_webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: banvic_airflow_scheduler
+    command: scheduler
+    restart: unless-stopped
+
+networks:
+  banvic_net:
+    external: true
+    name: banvic_net
+  airflow_internal:
+    driver: bridge

@@ -227,7 +227,7 @@ Todo projeto (SQL, Python, dbt, Databricks etc.) deve reproduzir exatamente este
 | 2 | Python + PostgreSQL | ⏳ |
 | 3 | Apache Hop | ✅ 7/7 KPIs |
 | 4 | Docker + Ambiente | ✅ (documentação) |
-| 5 | Airflow + Python | ⏳ |
+| 5 | Airflow + Python | ✅ |
 | 6 | Modern Data Stack (dbt) | ⏳ |
 | 7 | Databricks Lakehouse | ⏳ |
 | 8 | n8n | ⏳ |
