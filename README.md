@@ -216,7 +216,7 @@ cd banvic-360
 Os arquivos CSV não ficam no GitHub (são grandes). Baixe do Drive:
 
 ```
-[LINK DO DRIVE — será disponibilizado em breve]
+https://drive.google.com/drive/folders/1mtIBYJss1RqkfT_trxrcH5nanoiBHiuq?usp=sharing
 ```
 
 Após baixar:
