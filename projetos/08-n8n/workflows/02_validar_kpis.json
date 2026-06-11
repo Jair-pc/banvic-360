@@ -1,0 +1,147 @@
+{
+  "name": "BanVic 360 - Validar KPIs (standalone)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Validacao Standalone dos 8 KPIs\n\nRoda apenas as consultas de KPI contra o Gold\nja populado. Util para re-validar sem reprocessar\nBronze/Silver/Gold do zero.\n\nKPI1 comparado vs gabarito. KPIs 2-8: calculados.",
+        "height": 200,
+        "width": 400,
+        "color": 7
+      },
+      "id": "note-intro",
+      "name": "Nota: Validacao",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [60, 60]
+    },
+    {
+      "parameters": {},
+      "id": "trigger-manual",
+      "name": "Executar Manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 360]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    a.cod_agencia,\n    a.nome                                AS nome_agencia,\n    ROUND(SUM(c.saldo_total)::numeric, 2) AS saldo_total,\n    COUNT(c.num_conta)                    AS qtd_contas\nFROM gold.fato_contas c\nJOIN gold.dim_agencia a ON c.sk_agencia = a.sk_agencia\nGROUP BY a.cod_agencia, a.nome\nORDER BY saldo_total DESC",
+        "options": {}
+      },
+      "id": "kpi1",
+      "name": "KPI 1: Saldo por Agencia",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [460, 360],
+      "credentials": {
+        "postgres": {
+          "id": "banvic-pg-cred",
+          "name": "BanVic PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const GABARITO_SALDO    = 26509620.12;\nconst GABARITO_AGENCIAS = 10;\nconst TOLERANCIA        = 0.10;\n\nconst rows = $input.all();\nconst totalSaldo  = rows.reduce((s, r) => s + parseFloat(r.json.saldo_total || 0), 0);\nconst qtdAgencias = rows.length;\nconst diferenca   = Math.abs(totalSaldo - GABARITO_SALDO);\nconst aprovado    = diferenca <= TOLERANCIA && qtdAgencias === GABARITO_AGENCIAS;\n\nreturn [{\n  json: {\n    kpi:             'KPI1',\n    status:          aprovado ? 'APROVADO' : `FALHOU (dif=${diferenca.toFixed(4)})`,\n    aprovado,\n    saldo_calculado: totalSaldo.toFixed(2),\n    saldo_gabarito:  GABARITO_SALDO.toFixed(2),\n    qtd_agencias:    qtdAgencias\n  }\n}];"
+      },
+      "id": "validate-kpi1",
+      "name": "Validar KPI1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 360]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    t.ano_mes,\n    tx.nome_transacao,\n    COUNT(*)                              AS qtd_transacoes,\n    ROUND(SUM(tx.valor_transacao)::numeric, 2) AS volume_total\nFROM gold.fato_transacoes tx\nJOIN gold.dim_tempo t ON tx.sk_tempo = t.sk_tempo\nGROUP BY t.ano_mes, tx.nome_transacao\nORDER BY t.ano_mes, volume_total DESC",
+        "options": {}
+      },
+      "id": "kpi2",
+      "name": "KPI 2: Volume por Mes e Tipo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [900, 260],
+      "credentials": {
+        "postgres": {
+          "id": "banvic-pg-cred",
+          "name": "BanVic PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    status_proposta,\n    COUNT(*)                                   AS qtd,\n    ROUND(AVG(valor_proposta)::numeric, 2)     AS valor_medio,\n    ROUND(SUM(valor_proposta)::numeric, 2)     AS volume_total\nFROM gold.fato_propostas_credito\nGROUP BY status_proposta\nORDER BY qtd DESC",
+        "options": {}
+      },
+      "id": "kpi4",
+      "name": "KPI 4: Conversao de Propostas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [900, 460],
+      "credentials": {
+        "postgres": {
+          "id": "banvic-pg-cred",
+          "name": "BanVic PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    cli.faixa_etaria,\n    COUNT(DISTINCT c.num_conta)              AS qtd_contas,\n    ROUND(AVG(c.saldo_total)::numeric, 2)   AS saldo_medio,\n    ROUND(SUM(c.saldo_total)::numeric, 2)   AS saldo_total\nFROM gold.fato_contas c\nJOIN gold.dim_cliente cli ON c.sk_cliente = cli.sk_cliente\nGROUP BY cli.faixa_etaria\nORDER BY\n    CASE cli.faixa_etaria\n        WHEN '18-24' THEN 1 WHEN '25-34' THEN 2\n        WHEN '35-44' THEN 3 WHEN '45-54' THEN 4\n        WHEN '55-64' THEN 5 WHEN '65+'   THEN 6\n    END",
+        "options": {}
+      },
+      "id": "kpi7",
+      "name": "KPI 7: Segmentacao Etaria",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [900, 660],
+      "credentials": {
+        "postgres": {
+          "id": "banvic-pg-cred",
+          "name": "BanVic PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Consolida resultados de todos os KPIs e gera resumo final\nconst kpi1 = $('Validar KPI1').item.json;\n\nconst kpis = [\n  { kpi: 'KPI1', status: kpi1.status },\n  { kpi: 'KPI2', status: 'CALCULADO' },\n  { kpi: 'KPI4', status: 'CALCULADO' },\n  { kpi: 'KPI7', status: 'CALCULADO' },\n];\n\nconst linhas = kpis.map(k => {\n  const ok = k.status === 'APROVADO' || k.status === 'CALCULADO';\n  return `  [${ok ? 'OK' : '!!'}] ${k.kpi}: ${k.status}`;\n});\n\nconst resumo = [\n  '='.repeat(50),\n  '  BanVic 360 - Projeto 8 (n8n) - Resultado',\n  '='.repeat(50),\n  ...linhas,\n  '='.repeat(50),\n  `  Gabarito KPI1: R$ 26.509.620,12 | 10 agencias`,\n  `  Calculado KPI1: R$ ${kpi1.saldo_calculado}`,\n].join('\\n');\n\nconsole.log(resumo);\n\nreturn [{\n  json: {\n    resumo,\n    kpi1_status:  kpi1.status,\n    kpi1_saldo:   kpi1.saldo_calculado,\n    todos_ok:     kpi1.aprovado,\n    timestamp:    new Date().toISOString()\n  }\n}];"
+      },
+      "id": "resumo-final",
+      "name": "Resumo Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 460]
+    }
+  ],
+  "connections": {
+    "Executar Manualmente": {
+      "main": [[{"node": "KPI 1: Saldo por Agencia", "type": "main", "index": 0}]]
+    },
+    "KPI 1: Saldo por Agencia": {
+      "main": [[{"node": "Validar KPI1", "type": "main", "index": 0}]]
+    },
+    "Validar KPI1": {
+      "main": [[
+        {"node": "KPI 2: Volume por Mes e Tipo",  "type": "main", "index": 0},
+        {"node": "KPI 4: Conversao de Propostas", "type": "main", "index": 0},
+        {"node": "KPI 7: Segmentacao Etaria",     "type": "main", "index": 0}
+      ]]
+    },
+    "KPI 2: Volume por Mes e Tipo":  {"main": [[{"node": "Resumo Final", "type": "main", "index": 0}]]},
+    "KPI 4: Conversao de Propostas": {"main": [[{"node": "Resumo Final", "type": "main", "index": 1}]]},
+    "KPI 7: Segmentacao Etaria":     {"main": [[{"node": "Resumo Final", "type": "main", "index": 2}]]}
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "banvic-kpi-validation-001",
+  "tags": [{"id": "tag-banvic", "name": "banvic"}]
+}

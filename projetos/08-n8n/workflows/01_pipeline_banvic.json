@@ -1,0 +1,324 @@
+{
+  "name": "BanVic 360 - Pipeline ETL Completo",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## BanVic 360 — Pipeline ETL (n8n)\n\nOrquestra **Bronze → Silver → Gold → Validacao KPI**\nusando os mesmos scripts SQL do Projeto 1.\n\n**Pre-requisito:** CSVs carregados via `python scripts/carga_bronze.py`\n\n**Gabarito KPI1:** R$ 26.509.620,12 | 10 agencias",
+        "height": 240,
+        "width": 440,
+        "color": 7
+      },
+      "id": "note-intro",
+      "name": "Nota: Introducao",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [60, 60]
+    },
+    {
+      "parameters": {},
+      "id": "trigger-manual",
+      "name": "Executar Manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [220, 340]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "trigger-schedule",
+      "name": "Agendamento Diario 02h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 540]
+    },
+    {
+      "parameters": {
+        "mode": "passThrough",
+        "output": "input1"
+      },
+      "id": "merge-trigger",
+      "name": "Trigger Unificado",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [460, 440]
+    },
+    {
+      "parameters": {
+        "content": "### Fase Bronze\nVerifica que as tabelas Bronze existem\ne tem registros antes de continuar.\nDados carregados via `carga_bronze.py`.",
+        "height": 160,
+        "width": 280,
+        "color": 6
+      },
+      "id": "note-bronze",
+      "name": "Nota: Bronze",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [620, 280]
+    },
+    {
+      "parameters": {
+        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -t -c \"SELECT COUNT(*) FROM bronze.clientes WHERE cod_cliente IS NOT NULL\" | tr -d ' '"
+      },
+      "id": "bronze-check",
+      "name": "Bronze: Contar Clientes",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 460]
+    },
+    {
+      "parameters": {
+        "content": "### Fase Silver\nDQ + tipagem + padronizacao.\nRoda `ddl_silver_transforms.sql`\nem ~10-30 segundos.",
+        "height": 160,
+        "width": 280,
+        "color": 5
+      },
+      "id": "note-silver",
+      "name": "Nota: Silver",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [900, 280]
+    },
+    {
+      "parameters": {
+        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/sql/02_silver/ddl_silver_transforms.sql 2>&1 | tail -5"
+      },
+      "id": "silver-transforms",
+      "name": "Silver: Transformacoes DQ",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [960, 460]
+    },
+    {
+      "parameters": {
+        "content": "### Fase Gold\nStar schema dimensional.\n**Ordem obrigatoria:**\n1. Dimensoes\n2. Fatos (FK deps)",
+        "height": 160,
+        "width": 280,
+        "color": 4
+      },
+      "id": "note-gold",
+      "name": "Nota: Gold",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1180, 280]
+    },
+    {
+      "parameters": {
+        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/projetos/1_sql_puro/sql/01_populate_dims.sql 2>&1 | tail -3 && echo 'DIMS OK'"
+      },
+      "id": "gold-dims",
+      "name": "Gold: Popular Dimensoes",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1240, 420]
+    },
+    {
+      "parameters": {
+        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/projetos/1_sql_puro/sql/02_populate_fatos.sql 2>&1 | tail -3 && echo 'FATOS OK'"
+      },
+      "id": "gold-fatos",
+      "name": "Gold: Popular Fatos",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1240, 600]
+    },
+    {
+      "parameters": {
+        "content": "### KPI 1 — Validado\nCompara saldo por agencia\ncontra o gabarito fixado.\nTolerancia: R$ 0,10",
+        "height": 160,
+        "width": 280,
+        "color": 3
+      },
+      "id": "note-kpi",
+      "name": "Nota: Validacao KPI",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1460, 280]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n    a.cod_agencia,\n    a.nome                                AS nome_agencia,\n    ROUND(SUM(c.saldo_total)::numeric, 2) AS saldo_total,\n    COUNT(c.num_conta)                    AS qtd_contas\nFROM gold.fato_contas c\nJOIN gold.dim_agencia a ON c.sk_agencia = a.sk_agencia\nGROUP BY a.cod_agencia, a.nome\nORDER BY saldo_total DESC",
+        "options": {}
+      },
+      "id": "kpi1-query",
+      "name": "KPI 1: Saldo por Agencia",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1520, 460],
+      "credentials": {
+        "postgres": {
+          "id": "banvic-pg-cred",
+          "name": "BanVic PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Validacao KPI1: saldo total sob gestao por agencia\nconst GABARITO_SALDO    = 26509620.12;\nconst GABARITO_AGENCIAS = 10;\nconst TOLERANCIA        = 0.10;\n\nconst rows = $input.all();\nconst totalSaldo  = rows.reduce((s, r) => s + parseFloat(r.json.saldo_total || 0), 0);\nconst qtdAgencias = rows.length;\nconst diferenca   = Math.abs(totalSaldo - GABARITO_SALDO);\nconst aprovado    = diferenca <= TOLERANCIA && qtdAgencias === GABARITO_AGENCIAS;\n\nconsole.log(`KPI1 saldo=${totalSaldo.toFixed(2)} | agencias=${qtdAgencias} | dif=${diferenca.toFixed(4)} | ${aprovado ? 'APROVADO' : 'FALHOU'}`);\n\nreturn [{\n  json: {\n    kpi:             'KPI1',\n    status:          aprovado ? 'APROVADO' : 'FALHOU',\n    aprovado,\n    saldo_calculado: totalSaldo.toFixed(2),\n    saldo_gabarito:  GABARITO_SALDO.toFixed(2),\n    diferenca:       diferenca.toFixed(4),\n    qtd_agencias:    qtdAgencias,\n    timestamp:       new Date().toISOString()\n  }\n}];"
+      },
+      "id": "validate-kpi1",
+      "name": "Validar KPI1 vs Gabarito",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 460]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-aprovado",
+              "leftValue": "={{ $json.aprovado }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-approved",
+      "name": "KPI1 Aprovado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1960, 460]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ok-res",
+              "name": "resultado",
+              "value": "[OK] PIPELINE CONCLUIDO — KPI1 APROVADO",
+              "type": "string"
+            },
+            {
+              "id": "ok-saldo",
+              "name": "saldo_total",
+              "value": "={{ $('Validar KPI1 vs Gabarito').item.json.saldo_calculado }}",
+              "type": "string"
+            },
+            {
+              "id": "ok-ag",
+              "name": "agencias",
+              "value": "={{ $('Validar KPI1 vs Gabarito').item.json.qtd_agencias }}",
+              "type": "string"
+            },
+            {
+              "id": "ok-ts",
+              "name": "executado_em",
+              "value": "={{ $('Validar KPI1 vs Gabarito').item.json.timestamp }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "result-ok",
+      "name": "Resultado: Aprovado",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [2180, 340]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fail-res",
+              "name": "resultado",
+              "value": "[!!] PIPELINE FALHOU — KPI1 DIVERGENTE",
+              "type": "string"
+            },
+            {
+              "id": "fail-dif",
+              "name": "diferenca",
+              "value": "={{ $('Validar KPI1 vs Gabarito').item.json.diferenca }}",
+              "type": "string"
+            },
+            {
+              "id": "fail-calc",
+              "name": "saldo_calculado",
+              "value": "={{ $('Validar KPI1 vs Gabarito').item.json.saldo_calculado }}",
+              "type": "string"
+            },
+            {
+              "id": "fail-gab",
+              "name": "saldo_gabarito",
+              "value": "={{ $('Validar KPI1 vs Gabarito').item.json.saldo_gabarito }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "result-fail",
+      "name": "Resultado: Falhou",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [2180, 600]
+    }
+  ],
+  "connections": {
+    "Executar Manualmente": {
+      "main": [[{"node": "Trigger Unificado", "type": "main", "index": 0}]]
+    },
+    "Agendamento Diario 02h": {
+      "main": [[{"node": "Trigger Unificado", "type": "main", "index": 1}]]
+    },
+    "Trigger Unificado": {
+      "main": [[{"node": "Bronze: Contar Clientes", "type": "main", "index": 0}]]
+    },
+    "Bronze: Contar Clientes": {
+      "main": [[{"node": "Silver: Transformacoes DQ", "type": "main", "index": 0}]]
+    },
+    "Silver: Transformacoes DQ": {
+      "main": [[{"node": "Gold: Popular Dimensoes", "type": "main", "index": 0}]]
+    },
+    "Gold: Popular Dimensoes": {
+      "main": [[{"node": "Gold: Popular Fatos", "type": "main", "index": 0}]]
+    },
+    "Gold: Popular Fatos": {
+      "main": [[{"node": "KPI 1: Saldo por Agencia", "type": "main", "index": 0}]]
+    },
+    "KPI 1: Saldo por Agencia": {
+      "main": [[{"node": "Validar KPI1 vs Gabarito", "type": "main", "index": 0}]]
+    },
+    "Validar KPI1 vs Gabarito": {
+      "main": [[{"node": "KPI1 Aprovado?", "type": "main", "index": 0}]]
+    },
+    "KPI1 Aprovado?": {
+      "main": [
+        [{"node": "Resultado: Aprovado", "type": "main", "index": 0}],
+        [{"node": "Resultado: Falhou",   "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "banvic-pipeline-001",
+  "tags": [{"id": "tag-banvic", "name": "banvic"}]
+}

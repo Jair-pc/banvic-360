@@ -1,118 +1,123 @@
 # Projeto 1 — SQL Puro (PostgreSQL)
 
-Pipeline ETL completo do BanVic 360 construído inteiramente em SQL nativo do PostgreSQL,
-sem ORM, sem frameworks de orquestração e sem bibliotecas externas.
+Este projeto resolve o pipeline inteiro do BanVic usando apenas SQL — sem Python, sem ferramentas extras, sem frameworks. Só o banco de dados fazendo tudo.
 
-**Pergunta central:** _Quando SQL puro é suficiente — e quando não é?_
-
----
-
-## Stack técnica
-
-| Técnica | Arquivo | Por que usei |
-|---|---|---|
-| `EXPLAIN (ANALYZE, BUFFERS)` | `04_kpis_analyze.sql` | Entender planos de execução e custos reais |
-| Índices cobertos (`INCLUDE`) | `03_indices.sql` | Index-only scans evitam acesso ao heap |
-| Índices parciais | `03_indices.sql` | `WHERE eh_conta_ativa = TRUE` reduz tamanho do índice |
-| Window functions | `02_populate_fatos.sql`, DDL | `ROW_NUMBER OVER(PARTITION BY...)` para deduplicação SCD |
-| CTEs para evitar produto cartesiano | DDL (KPI 6) | Separar agregações antes do JOIN final |
-| `ON CONFLICT DO NOTHING` | DDL (`dim_tempo`) | Insert idempotente da dimensão calendário |
-| `TRUNCATE ... CASCADE` | `01_populate_dims.sql` | Recarga segura respeitando FKs |
-| Star schema dimensional | DDL Gold | Modelo padrão de DW para analytics |
+**Pergunta principal:** _Até onde SQL puro consegue ir?_
 
 ---
 
-## Estrutura dos arquivos
+## O que acontece aqui
+
+Imagine que os dados do banco chegaram bagunçados em tabelas brutas (Bronze). Este projeto pega esses dados, organiza em tabelas limpas (Silver) e monta o modelo final (Gold) — tudo usando instruções SQL direto no PostgreSQL.
+
+No final, 8 perguntas são respondidas e verificadas contra o gabarito.
+
+---
+
+## Resultado
 
 ```
-sql/
-├── 01_populate_dims.sql   Silver -> Gold: popula 6 dimensões
-├── 02_populate_fatos.sql  Silver -> Gold: popula 3 tabelas fato
-├── 03_indices.sql         Índices estratégicos (17 índices, incluindo cobertos e parciais)
-└── 04_kpis_analyze.sql    8 KPIs com EXPLAIN ANALYZE para análise de performance
+7/7 KPIs corretos — APROVADO
+```
+
+| KPI | Resposta | Status |
+|---|---|---|
+| 1 — Saldo por agência | R$ 26.509.620,12 | OK |
+| 2/3 — Volume de transações | R$ 58.122.708,67 | OK |
+| 4 — Propostas de crédito | 525 Enviada / 513 Aprovada | OK |
+| 5 — Ranking de agências | Agência Digital em 1° | OK |
+| 6 — Carteira por colaborador | Total R$ 26.509.620,12 | OK |
+| 7 — Segmentação por idade | 50.997 clientes | OK |
+| 8 — Correção IPCA | R$ 58.122.708,67 (nominal) | OK |
+
+---
+
+## Arquivos do projeto
+
+```
+projetos/01-sql-puro/sql/
+├── 01_populate_dims.sql   Popula as 6 dimensões (clientes, agências, tempo...)
+├── 02_populate_fatos.sql  Popula as 3 tabelas de fatos (transações, contas, propostas)
+├── 03_indices.sql         Cria 17 índices para deixar as consultas mais rápidas
+└── 04_kpis_analyze.sql    Calcula as 8 KPIs com análise de performance
 ```
 
 ---
 
 ## Como executar
 
-### Pré-requisitos
-- Docker Compose rodando (`docker compose up -d`)
-- Bronze carregado (`python scripts/carga_bronze.py`)
-- Silver transformado (`sql/02_silver/ddl_silver_transforms.sql`)
-- Gold DDL criado (`sql/03_gold/ddl_modelo_dimensional.sql`)
-
-### Ordem de execução
+Antes de começar, o banco precisa estar rodando com os dados carregados:
 
 ```bash
-# 1. Popula dimensões
+# Na raiz do projeto
+docker compose up -d
+python scripts/carga_bronze.py
+```
+
+Depois execute na ordem:
+
+```bash
+# 1. Preencher as dimensões (tabelas de referência)
 psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/01_populate_dims.sql
 
-# 2. Popula fatos (depende das dimensões)
+# 2. Preencher os fatos (dados das transações, contas, propostas)
 psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/02_populate_fatos.sql
 
-# 3. Cria índices estratégicos
+# 3. Criar os índices (deixa as consultas mais rápidas)
 psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/03_indices.sql
 
-# 4. Valida KPIs
+# 4. Verificar se as respostas estão corretas
 python scripts/validar_gabarito_pg.py
 ```
 
 ---
 
-## Resultados de performance (EXPLAIN ANALYZE)
+## Por que esse projeto é importante
 
-| KPI | Operação dominante | Tempo real | Estratégia de índice |
-|---|---|---|---|
-| KPI 1 | Hash Join 998 linhas | **1,7 ms** | `idx_fc_agencia` (INCLUDE saldo) |
-| KPI 2/3 | Hash Join 71.921 linhas | **179 ms** | `idx_ft_tempo_tx_val` (coberto) |
-| KPI 4 | Sequential Scan 1.996 propostas | **< 1 ms** | Tabela pequena, seq scan otimizado |
-| KPI 5 | CTE + Window Function | **2 ms** | Reusa `vw_kpi1` como CTE |
-| KPI 6 | Dupla CTE + Hash Join | **3 ms** | `idx_fc_colaborador`, `idx_fp_colaborador` |
-| KPI 7 | Merge Join dim_cliente | **45 ms** | `idx_dc_faixa` (parcial) |
-| KPI 8 | Cross Join IPCA + Window | **195 ms** | `idx_dt_ipca` (parcial NOT NULL) |
+SQL puro é o ponto de partida de qualquer engenheiro de dados. Antes de aprender Airflow, dbt ou Databricks, você precisa dominar o SQL — porque todas essas ferramentas, no fundo, geram ou executam SQL.
 
-Com apenas 998 contas e 71.921 transações, o planejador escolhe Seq Scan para tabelas pequenas —
-overhead do índice seria maior que o ganho. Os índices se tornam relevantes na escala sintética
-(50k+ clientes, 2M+ transações).
+Este projeto mostra que dá para fazer um pipeline completo só com SQL. Mas também mostra os limites: sem agendamento automático, sem retry em caso de falha, sem documentação automática, sem versionamento das transformações.
+
+É exatamente esses problemas que os projetos seguintes resolvem.
 
 ---
 
-## Validação do gabarito
+## Técnicas de SQL usadas
 
-```
-Resultado: 7/7 KPIs corretos
-APROVADO: todos os KPIs batem com o gabarito.
-```
+| Técnica | Para que serve |
+|---|---|
+| Window Functions (`ROW_NUMBER OVER PARTITION BY`) | Encontrar o registro mais recente de cada cliente |
+| CTEs (WITH ...) | Separar cálculos complexos antes de juntar tudo |
+| Índices cobertos (`INCLUDE`) | Responder consultas sem nem acessar a tabela principal |
+| Índices parciais (`WHERE eh_conta_ativa`) | Índice menor, só para os registros que importam |
+| `ON CONFLICT DO NOTHING` | Inserir sem erro mesmo se o registro já existir |
+| `EXPLAIN ANALYZE` | Ver quanto tempo cada consulta leva e por quê |
+| Star Schema | Modelo de dados padrão para análises — fácil de entender e rápido |
 
-| KPI | PG (Gold) | Gabarito | Status |
-|---|---|---|---|
-| 1 — Saldo por agência | R$ 26.509.620,12 | R$ 26.509.620,12 | ✓ |
-| 2/3 — Volume transações | R$ 58.122.708,67 | R$ 58.122.708,67 | ✓ |
-| 4 — Conversão propostas | 525 Enviada / 513 Aprovada | idem | ✓ |
-| 5 — Ranking agências | Agência Digital #1 | idem | ✓ |
-| 6 — Carteira colaborador | R$ 26.509.620,12 total | idem | ✓ |
-| 7 — Segmentação etária | 50.997 clientes | idem | ✓ |
-| 8 — Correção IPCA | R$ 58.122.708,67 nominal | idem | ✓ |
+---
+
+## Performance das consultas (EXPLAIN ANALYZE)
+
+Com os dados originais (~1.000 clientes, 72k transações):
+
+| KPI | Tempo | Por quê é rápido |
+|---|---|---|
+| KPI 1 — Saldo por agência | 1,7 ms | Hash Join + índice coberto |
+| KPI 2/3 — Volume transações | 179 ms | 72k linhas com índice composto |
+| KPI 4 — Propostas | < 1 ms | Tabela pequena, busca sequencial |
+| KPI 5 — Ranking | 2 ms | Reaproveita cálculo do KPI 1 |
+| KPI 6 — Por colaborador | 3 ms | Dois índices, duas CTEs |
+| KPI 7 — Por faixa etária | 45 ms | Índice parcial por faixa |
+| KPI 8 — Correção IPCA | 195 ms | Window function + IPCA do período |
 
 ---
 
 ## Quando usar SQL Puro
 
-| Cenário | SQL Puro é ideal? |
+| Situação | Faz sentido? |
 |---|---|
-| Time pequeno com forte background SQL | **Sim** — zero dependências |
-| Transformações pontuais ou dashboards finais | **Sim** — lógica vive no banco |
-| Pipeline simples (Bronze → Gold em 1-2 passos) | **Sim** — menos camadas = menos bugs |
-| Orquestração com retry, alertas, scheduling | **Não** — use Airflow ou dbt |
-| Linhagem de dados e catálogo automáticos | **Não** — use dbt |
-| Escala além de 100 GB ou multi-fonte | **Não** — use Spark / Databricks |
-| Versionamento de transformações | **Limitado** — dbt faz melhor |
-| Testes unitários de transformações | **Limitado** — dbt + Great Expectations fazem melhor |
-
-SQL Puro no PostgreSQL é a escolha certa quando a equipe domina SQL e a complexidade
-do pipeline cabe em um único banco. É a fundação que todo engenheiro de dados precisa
-dominar antes de adicionar camadas de abstração.
-
-O maior risco: **lógica espalhada em múltiplos scripts sem orquestração**. É exatamente
-o problema que os projetos seguintes resolvem com Python, dbt e Airflow.
+| Time pequeno que já sabe SQL bem | Sim — zero dependências extras |
+| Pipeline simples (carga → transforma → entrega) | Sim — menos partes = menos problemas |
+| Precisar de retry automático e alertas | Não — use Airflow (Projeto 5) |
+| Precisar de testes e documentação automáticos | Não — use dbt (Projeto 6) |
+| Dados acima de 100 GB | Não — use Databricks (Projeto 7) |

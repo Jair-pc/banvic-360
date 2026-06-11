@@ -1,45 +1,44 @@
 # Projeto 3 — Apache Hop
 
-Pipeline ETL completo do BanVic 360 construído com **Apache Hop** via Docker.
-A mesma arquitetura Bronze → Silver → Gold dos projetos anteriores, desta vez
-com uma ferramenta visual low-code de ETL enterprise.
+Este projeto faz o mesmo pipeline do BanVic usando o **Apache Hop** — uma ferramenta visual de ETL onde você monta o pipeline arrastando blocos na tela, sem escrever código.
 
-**Pergunta central:** _Quando uma ferramenta visual ETL faz mais sentido que scripts?_
+**Pergunta principal:** _Quando uma ferramenta visual faz mais sentido do que escrever código?_
 
 ---
 
-## Stack técnica
+## O que é o Apache Hop
 
-| Conceito Hop | Arquivo | Por que usei |
-|---|---|---|
-| **ExecSQL transform** | `pipelines/*.hpl` | Executa SQL dentro de um pipeline visual |
-| **RowGenerator** | `pipelines/*.hpl` | Gera linha trigger para acionar transforms sem input externo |
-| **Workflow orquestração** | `workflows/00_banvic_pipeline.hwf` | Encadeia pipelines com fluxo sucesso/erro |
-| **SQL action** | `workflows/00_banvic_pipeline.hwf` | DDL de limpeza antes do pipeline (idempotência) |
-| **Metadata RDBMS** | `metadata/rdbms/banvic_pg.json` | Conexão parametrizada por variáveis de ambiente |
-| **CDATA sections** | `*.hpl/*.hwf` | SQL multi-linha embutido em XML sem necessidade de escape |
-| **Error handling visual** | workflow hops `evaluation=N` | Abort automático em qualquer falha de etapa |
+Imagine montar um fluxo de dados como montar peças de LEGO: você pega blocos prontos (ler arquivo CSV, executar SQL, salvar no banco) e conecta um no outro. O Hop cuida de executar na ordem certa, tratando erros no meio do caminho.
+
+É muito usado em empresas onde parte do time não é programador mas precisa entender e modificar o pipeline.
 
 ---
 
-## Estrutura dos arquivos
+## Resultado
 
 ```
-03-apache-hop/
+7/7 KPIs corretos — APROVADO
+```
+
+---
+
+## Arquivos do projeto
+
+```
+projetos/03-apache-hop/
 ├── hop/
-│   ├── project-config.json             Config do projeto Hop
-│   ├── metadata/
-│   │   └── rdbms/
-│   │       └── banvic_pg.json          Conexao PostgreSQL (vars de ambiente)
+│   ├── project-config.json          Configuração do projeto no Hop
+│   ├── metadata/rdbms/
+│   │   └── banvic_pg.json           Configuração da conexão com o banco
 │   ├── pipelines/
-│   │   ├── 01_silver.hpl               Bronze -> Silver (12 transforms)
-│   │   ├── 02_gold_dims.hpl            Silver -> Gold Dims (8 transforms)
-│   │   └── 03_gold_fatos.hpl           Silver -> Gold Fatos (5 transforms)
+│   │   ├── 01_silver.hpl            Transforma Bronze → Silver (12 blocos)
+│   │   ├── 02_gold_dims.hpl         Cria as dimensões Gold (8 blocos)
+│   │   └── 03_gold_fatos.hpl        Cria os fatos Gold (5 blocos)
 │   └── workflows/
-│       └── 00_banvic_pipeline.hwf      Orchestracao completa + error handling
-├── docker-compose.yml                  Hop 2.10 conectado a banvic_net
-├── run.bat                             Execucao Windows
-└── run.sh                              Execucao Linux/Mac
+│       └── 00_banvic_pipeline.hwf   Orquestra tudo + trata erros
+├── docker-compose.yml               Hop 2.10 rodando em Docker
+├── run.bat                          Execução no Windows
+└── run.sh                           Execução no Linux/Mac
 ```
 
 ---
@@ -48,16 +47,15 @@ com uma ferramenta visual low-code de ETL enterprise.
 
 ### Pré-requisitos
 
-1. **Postgres rodando com Bronze carregado:**
-   ```bash
-   # Na raiz do projeto
-   docker compose up -d
-   python scripts/carga_bronze.py
-   ```
+O banco precisa estar rodando com os dados Bronze carregados:
 
-2. **Docker** instalado e rodando.
+```bash
+# Na raiz do projeto
+docker compose up -d
+python scripts/carga_bronze.py
+```
 
-### Pipeline completo via Docker
+### Rodar via Docker (recomendado)
 
 **Windows:**
 ```bat
@@ -71,20 +69,14 @@ cd projetos/03-apache-hop
 chmod +x run.sh && ./run.sh
 ```
 
-**Ou diretamente:**
-```bash
-cd projetos/03-apache-hop
-docker compose up --abort-on-container-exit --exit-code-from hop
-```
+### Ver o pipeline na interface visual
 
-### Abrir no Hop GUI
-
-1. Baixe Apache Hop em [hop.apache.org](https://hop.apache.org)
+1. Baixe o Apache Hop em [hop.apache.org](https://hop.apache.org)
 2. Abra o Hop GUI
-3. **File → New Project** → aponte para `projetos/03-apache-hop/hop/`
-4. Abra qualquer `.hpl` ou `.hwf` para visualizar o pipeline
+3. Vá em **Arquivo → Novo Projeto** e aponte para `projetos/03-apache-hop/hop/`
+4. Abra qualquer arquivo `.hpl` para ver o pipeline visualmente
 
-### Validar KPIs
+### Verificar as respostas
 
 ```bash
 python scripts/validar_gabarito_pg.py
@@ -92,75 +84,56 @@ python scripts/validar_gabarito_pg.py
 
 ---
 
-## Arquitetura do workflow
+## Como o pipeline funciona por dentro
+
+Cada pipeline segue o mesmo padrão:
 
 ```
-Start
-  │
-  ▼
-Preparar ambiente (SQL Action)
-  DROP Silver tables / TRUNCATE Gold tables
-  │ sucesso           │ erro
-  ▼                   ▼
-01 Silver            ABORT
-  │ sucesso           │ erro
-  ▼                   ▼
-02 Gold Dims         ABORT
-  │ sucesso           │ erro
-  ▼                   ▼
-03 Gold Fatos        ABORT
-  │ sucesso
-  ▼
-Sucesso
+[Gera 1 linha] → [Executa SQL 1] → [Executa SQL 2] → ... → [Finaliza]
 ```
 
-## Padrão dos pipelines
+O bloco "Gera 1 linha" é o ponto de partida — ele dispara o fluxo.
+Cada bloco "Executa SQL" roda uma instrução SQL no banco.
+Se qualquer bloco falhar, o workflow para e registra o erro.
 
-Todos os 3 pipelines seguem o mesmo padrão:
-
-```
-RowGenerator (1 linha) → ExecSQL 01 → ExecSQL 02 → ... → ExecSQL N → Dummy
-```
-
-- **RowGenerator**: gera 1 linha para acionar o fluxo (sem arquivo ou tabela de input)
-- **ExecSQL**: executa uma instrução SQL por transform (`execute_each_row=N`, `single_statement=Y`)
-- **Dummy**: descarta o output (o resultado útil está no banco)
-
----
-
-## Resultado
+### Fluxo de controle (workflow)
 
 ```
-Resultado: 7/7 KPIs corretos
-APROVADO: todos os KPIs batem com o gabarito.
+Início
+  ↓
+Limpar tabelas (evitar dados duplicados)
+  ↓ sucesso         ↓ erro
+Silver             PARAR
+  ↓ sucesso         ↓ erro
+Gold Dimensões     PARAR
+  ↓ sucesso         ↓ erro
+Gold Fatos         PARAR
+  ↓
+Sucesso!
 ```
 
 ---
 
-## SQL Puro vs Python vs Apache Hop
+## Hop vs Código
 
-| Critério | Projeto 1 (SQL) | Projeto 2 (Python) | Projeto 3 (Hop) |
-|---|---|---|---|
-| Visual / Low-code | Não | Não | **Sim** |
-| Debug interativo | Difícil | `df.head()` | **GUI + preview de dados** |
-| Testabilidade unitária | Baixa | Alta | Média (cada transform isolável) |
-| Auditoria / lineage | Manual | Manual | **Nativo** (metadata) |
-| Reutilização de transforms | Difícil | Funções Python | **Shared transforms** |
-| Curva de aprendizado SQL | Alta | Média | Baixa (arrastar e soltar) |
-| Performance bruta | Melhor | Overhead pandas | Semelhante ao SQL |
-| Scheduler nativo | Não | Não | **Sim** (Hop Server) |
+| O que você precisa | Hop | Python/SQL |
+|---|---|---|
+| Ver o fluxo visualmente | Sim — arrastar e soltar | Não — precisa ler código |
+| Modificar um passo | Clicar + editar | Editar arquivo de código |
+| Debug (ver dados no meio) | Sim — preview de dados em cada bloco | `df.head()` ou logs |
+| Rastreabilidade dos dados | Sim — nativo | Manual |
+| Portabilidade entre bancos | Sim — troca a conexão | Depende do código |
+| Curva de aprendizado | Baixa | Média a alta |
+| Time sem programadores | Sim | Não |
+
+---
 
 ## Quando usar Apache Hop
 
-| Cenário | Hop é ideal? |
+| Situação | Faz sentido? |
 |---|---|
-| Time sem background de programação | **Sim** — visual, low-code |
-| Auditoria e compliance rigoroso | **Sim** — lineage nativo |
-| Migrações entre bancos diferentes | **Sim** — abstração de banco |
-| Pipelines com retry e error handling visual | **Sim** — tratamento nativo |
-| Transformações complexas com ML | **Não** — use Python/Spark |
-| Pipeline simples em time SQL-first | **Não** — SQL Puro ou dbt |
-
-Apache Hop é a ferramenta certa quando o time não tem perfil de código mas precisa
-de rastreabilidade, error handling e portabilidade entre ambientes. O investimento
-está na curva de aprendizado da ferramenta, não em programação.
+| Time sem perfil de programação | Sim — visual, intuitivo |
+| Precisar de auditoria e rastreabilidade | Sim — nativo |
+| Migrar dados entre bancos diferentes | Sim — abstrai a conexão |
+| Transformações pesadas com Python/ML | Não — use Python puro |
+| Pipeline simples em time que só sabe SQL | Não — SQL Puro ou dbt são mais diretos |

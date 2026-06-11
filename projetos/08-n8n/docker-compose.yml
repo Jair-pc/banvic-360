@@ -1,0 +1,73 @@
+version: "3.8"
+
+# Projeto 8 — BanVic 360 com n8n
+# Porta 5433 para nao conflitar com o PostgreSQL do docker-compose.yml raiz (5432)
+
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: banvic_postgres_n8n
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-banvic_user}
+      POSTGRES_PASSWORD: ${PG_PASS:-banvic_pass}
+      POSTGRES_DB: banvic
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../../sql:/docker-entrypoint-initdb.d/sql:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-banvic_user} -d banvic"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - banvic_n8n
+
+  n8n:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: banvic_n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # Autenticacao da UI
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASS:-banvic2024}
+      # Banco de metadados do n8n (SQLite por padrao — zero config)
+      DB_TYPE: sqlite
+      # Fuso horario
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      TZ: America/Sao_Paulo
+      # Variaveis do projeto expostas ao ambiente do n8n
+      BANVIC_PG_HOST: postgres
+      BANVIC_PG_PORT: "5432"
+      BANVIC_PG_USER: ${PG_USER:-banvic_user}
+      BANVIC_PG_PASS: ${PG_PASS:-banvic_pass}
+      BANVIC_PG_DB: banvic
+      # Execucoes salvas no historico
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
+      EXECUTIONS_DATA_SAVE_ON_ERROR: all
+      N8N_LOG_LEVEL: info
+    volumes:
+      - n8n_data:/home/node/.n8n
+      # Projeto montado em /data/banvic — acessivel nos Execute Command nodes
+      - ../../:/data/banvic:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - banvic_n8n
+
+volumes:
+  pg_data:
+  n8n_data:
+
+networks:
+  banvic_n8n:
+    driver: bridge

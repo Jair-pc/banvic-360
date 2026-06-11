@@ -1,49 +1,55 @@
 # Projeto 2 — Python + PostgreSQL
 
-Pipeline ETL completo do BanVic 360 implementado em Python com psycopg2, pandas e SQLAlchemy,
-sem depender do cliente `psql` ou de scripts SQL avulsos.
+Este projeto faz o mesmo pipeline do Projeto 1, mas em vez de escrever SQL direto no banco, escreve código Python que se conecta ao PostgreSQL e executa as transformações.
 
-**Pergunta central:** _Quando Python bate SQL — e quando não bate?_
-
----
-
-## Stack técnica
-
-| Técnica | Arquivo | Por que usei |
-|---|---|---|
-| `pd.read_sql` + `to_sql` | `etl/silver.py` | I/O eficiente entre pandas e PostgreSQL |
-| `np.select` como `CASE WHEN` | `etl/silver.py` | Derivar canal e faixa etária em vetores |
-| `df.merge` como SQL JOIN | `etl/gold_fatos.py` | Resolver FKs surrogate sem SQL |
-| `UPDATE FROM` via temp table | `etl/gold_dims.py` | Enriquecimento de dim_tempo com macroeconomia |
-| Context manager psycopg2 | `etl/conexao.py` | Controle transacional seguro |
-| SQLAlchemy `engine.begin()` | `etl/conexao.py` | Commit atômico via with-statement |
-| Notebook como exploração | `notebooks/` | Análise interativa e visualizações dos KPIs |
+**Pergunta principal:** _Quando Python faz melhor do que SQL puro?_
 
 ---
 
-## Estrutura dos arquivos
+## O que muda em relação ao Projeto 1
+
+No Projeto 1, as regras de transformação ficam dentro do banco, em arquivos `.sql`.
+Neste projeto, elas ficam em código Python — usando pandas para manipular os dados
+e psycopg2 para conversar com o banco.
+
+O resultado final é o mesmo: os mesmos dados no mesmo modelo, as mesmas 8 respostas corretas.
+
+---
+
+## Resultado
 
 ```
-02-python-postgresql/
+7/7 KPIs corretos — APROVADO
+```
+
+---
+
+## Arquivos do projeto
+
+```
+projetos/02-python-postgresql/
 ├── etl/
-│   ├── conexao.py       Conexao psycopg2 + SQLAlchemy, helper truncar()
-│   ├── silver.py        10 transforms Bronze->Silver em pandas
-│   ├── gold_dims.py     6 funcoes de carga das dimensoes Gold
-│   ├── gold_fatos.py    3 funcoes de carga das tabelas fato
-│   └── pipeline.py      Orquestrador com timing por etapa
+│   ├── conexao.py       Como se conectar ao banco (reutilizável)
+│   ├── silver.py        10 transformações Bronze → Silver em pandas
+│   ├── gold_dims.py     Carga das 6 dimensões Gold
+│   ├── gold_fatos.py    Carga das 3 tabelas fato
+│   └── pipeline.py      Orquestrador — chama cada etapa na ordem
 ├── notebooks/
-│   └── 01_pipeline_banvic.ipynb  Exploracao + visualizacoes interativas
-└── run.py               CLI: python run.py [--etapa silver|gold_dims|gold_fatos]
+│   └── 01_pipeline_banvic.ipynb  Exploração interativa com gráficos
+└── run.py               Ponto de entrada: python run.py
 ```
 
 ---
 
 ## Como executar
 
-### Pré-requisitos
-- Docker Compose rodando (`docker compose up -d`)
-- Bronze carregado (`python scripts/carga_bronze.py`)
-- Gold DDL criado (`sql/03_gold/ddl_modelo_dimensional.sql`)
+Antes de começar, o banco precisa estar rodando com os dados carregados:
+
+```bash
+# Na raiz do projeto
+docker compose up -d
+python scripts/carga_bronze.py
+```
 
 ### Pipeline completo
 
@@ -51,24 +57,24 @@ sem depender do cliente `psql` ou de scripts SQL avulsos.
 python projetos/02-python-postgresql/run.py
 ```
 
-### Por etapa
+### Por etapa (útil para testar só uma parte)
 
 ```bash
-# Apenas Silver
+# Só Silver
 python projetos/02-python-postgresql/run.py --etapa silver
 
-# Dims e fatos Gold
+# Silver + Gold
 python projetos/02-python-postgresql/run.py --etapa gold_dims gold_fatos
 ```
 
-### Notebook
+### Notebook interativo
 
 ```bash
 pip install jupyter matplotlib
 jupyter notebook projetos/02-python-postgresql/notebooks/01_pipeline_banvic.ipynb
 ```
 
-### Validar KPIs
+### Verificar as respostas
 
 ```bash
 python scripts/validar_gabarito_pg.py
@@ -76,37 +82,27 @@ python scripts/validar_gabarito_pg.py
 
 ---
 
-## Resultado
+## SQL Puro vs Python — quando usar cada um
 
-```
-Resultado: 7/7 KPIs corretos
-APROVADO: todos os KPIs batem com o gabarito.
-```
+| O que você precisa | Melhor escolha |
+|---|---|
+| Velocidade bruta de processamento | SQL Puro |
+| Testar partes do código separadamente | Python |
+| Fazer debug (inspecionar dados no meio do caminho) | Python (`df.head()`, `df.info()`) |
+| Usar Machine Learning junto com o pipeline | Python |
+| Reutilizar lógica em lugares diferentes | Python (funções reutilizáveis) |
+| Time que só sabe SQL | SQL Puro |
+| Sem instalar dependências extras | SQL Puro |
 
 ---
 
-## SQL Puro vs Python
-
-| Critério | Projeto 1 (SQL) | Projeto 2 (Python) |
-|---|---|---|
-| Testabilidade unitária | Baixa | **Alta** — cada função isolável |
-| Debug interativo | Difícil | **Fácil** — `df.head()`, `df.info()` |
-| Performance bruta | Melhor | Overhead de memória |
-| Integração com ML | Impossível | **Nativa** |
-| Reutilização de lógica | Difícil | **Fácil** — funções Python |
-| Dependências | Nenhuma | psycopg2, pandas, SQLAlchemy |
-
 ## Quando usar Python + PostgreSQL
 
-| Cenário | Python + PG é ideal? |
+| Situação | Faz sentido? |
 |---|---|
-| Time Python-first (data scientists, ML engineers) | **Sim** — sem curva de SQL avançado |
-| Transformações com lógica de negócio complexa | **Sim** — código testável e modular |
-| Integração com APIs externas ou ML models | **Sim** — nativo |
-| Exploração interativa de dados | **Sim** — notebooks |
-| Pipeline de alta performance (100M+ linhas) | **Não** — use Spark ou Databricks |
-| Time 100% SQL com DW maduro | **Não** — SQL Puro ou dbt |
-
-Python com pandas é a abordagem certa para times que preferem código sobre SQL,
-especialmente quando as regras de negócio crescem além do que uma query consegue expressar
-com clareza. O custo é performance e a necessidade de gerenciar dependências.
+| Time de cientistas de dados ou engenheiros Python | Sim — sem precisar de SQL avançado |
+| Regras de negócio complexas demais para SQL | Sim — código Python é mais testável |
+| Integração com APIs externas ou modelos de ML | Sim — nativo em Python |
+| Exploração de dados com gráficos | Sim — notebooks Jupyter |
+| Pipeline com 100 milhões de linhas | Não — use Databricks (Projeto 7) |
+| Time que prefere SQL e tem warehouse maduro | Não — SQL Puro ou dbt |
