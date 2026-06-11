@@ -43,22 +43,41 @@ projetos/07-databricks/
 
 ---
 
+## Este projeto roda na nuvem
+
+Diferente dos outros projetos, este não roda no seu computador local. Ele roda no **Databricks Community Edition** — que é gratuito para aprendizado.
+
+Para criar sua conta gratuita: [community.cloud.databricks.com](https://community.cloud.databricks.com)
+
+---
+
 ## Como executar
 
-### Pré-requisito: subir os CSVs para o Databricks
+### Passo 1 — Criar cluster no Databricks
 
-Os dados ficam fora do git. Você precisa carregá-los no DBFS (sistema de arquivos do Databricks).
+1. Faça login no Databricks Community Edition
+2. Vá em **Compute → Create Cluster**
+3. Configurações:
+   - Nome: `banvic-cluster`
+   - Single Node
+   - Databricks Runtime: **14.3 LTS** (importante — versões diferentes podem dar erro)
+4. Clique em **Create Cluster** e aguarde ~3 minutos
 
-**Opção 1 — pela interface visual (mais fácil):**
-1. No Databricks: menu **Catalog** → **Add data** → **Upload files**
-2. Destino: `/FileStore/banvic/csv/banvic/` para os dados originais
-3. Destino: `/FileStore/banvic/csv/sintetico/` para os sintéticos
-4. Destino: `/FileStore/banvic/csv/external_data/` para os dados externos
+### Passo 2 — Subir os CSVs para o Databricks
 
-**Opção 2 — pela linha de comando:**
+Os dados precisam estar no DBFS (sistema de arquivos do Databricks).
+
+**Opção A — pela interface visual (mais fácil):**
+1. No Databricks: menu **Catalog → Add data → Upload files**
+2. Faça upload das pastas na ordem:
+   - `data/banvic/` → para `/FileStore/banvic/csv/banvic/`
+   - `data/sintetico/` → para `/FileStore/banvic/csv/sintetico/`
+   - `external_data/` → para `/FileStore/banvic/csv/external_data/`
+
+**Opção B — pela linha de comando:**
 ```bash
 pip install databricks-cli
-databricks configure --token
+databricks configure --token   # cole o token do seu workspace
 
 databricks fs mkdirs dbfs:/FileStore/banvic/csv
 databricks fs cp -r data/banvic/      dbfs:/FileStore/banvic/csv/banvic/
@@ -66,29 +85,55 @@ databricks fs cp -r data/sintetico/   dbfs:/FileStore/banvic/csv/sintetico/
 databricks fs cp -r external_data/    dbfs:/FileStore/banvic/csv/external_data/
 ```
 
-### Passo a passo no Databricks Community Edition (gratuito)
+### Passo 3 — Importar os notebooks
 
-1. **Criar cluster:** Compute → Create Cluster → Single Node → DBR 14.3 LTS
-2. **Importar notebooks:** Workspace → Import → selecionar cada arquivo `.py`
-3. **Executar em ordem:** `00_setup` → `01_bronze` → `02_silver` → `03_gold_dims` → `04_gold_fatos` → `05_validar_kpis`
+1. No Databricks: **Workspace → Import**
+2. Selecione cada arquivo `.py` da pasta `notebooks/`
+3. Os notebooks aparecem no seu workspace
 
-### Executar via CLI (conta paga)
+### Passo 4 — Executar em ordem
 
-```bash
-# Windows
-run.bat
+Execute um por vez, aguardando cada um terminar antes do próximo:
 
-# Linux/Mac
-chmod +x run.sh && ./run.sh
+```
+00_setup.py → 01_bronze.py → 02_silver.py → 03_gold_dims.py → 04_gold_fatos.py → 05_validar_kpis.py
 ```
 
-### Testar localmente (sem Databricks)
-
-```bash
-pip install pyspark==3.5.1 delta-spark==3.2.0
-# Ajustar: remover dbutils, trocar display() por show(), ajustar caminhos
-python notebooks/02_silver.py
+**O que você vai ver no notebook 05_validar_kpis:**
 ```
+KPI1 - Saldo por Agencia:
+  Gabarito: 26509620.12
+  Calculado: 26509620.12
+  Status: APROVADO
+
+...
+
+8/8 KPIs aprovados - TODOS CORRETOS
+```
+
+---
+
+## Resultados da execução
+
+### Três schemas criados (Bronze / Silver / Gold)
+
+![Catalog Explorer](prints/Catalog%20Explorer.png)
+
+> `banvic_bronze`, `banvic_silver` e `banvic_gold` no Unity Catalog com 35 tabelas Delta.
+
+### Bronze — 25 tabelas Delta carregadas
+
+![Output 01_bronze](prints/Output%20do%2001_bronze.png)
+
+### Silver — 6 tabelas transformadas
+
+![Output 02_silver](prints/Output%20do%2002_silver.png)
+
+### Validação — 8/8 KPIs aprovados
+
+![Resumo final](prints/resumo_final.png)
+
+> KPI1: saldo R$ 26.509.620,12 — exatamente o gabarito. Zero divergência.
 
 ---
 
@@ -134,27 +179,32 @@ def silver_clientes():
 
 ---
 
-## Resultados da execução
+## Se algo não funcionar
 
-### Três schemas criados (Bronze / Silver / Gold)
+**"FileNotFoundException: /FileStore/banvic/csv/banvic/"**
+```
+Os CSVs não foram carregados ainda.
+Volte ao Passo 2 e faça o upload dos arquivos.
+```
 
-![Catalog Explorer](prints/Catalog%20Explorer.png)
+**"AnalysisException: Database 'banvic_bronze' not found"**
+```
+Execute o notebook 00_setup.py primeiro.
+Ele cria os databases necessários.
+```
 
-> `banvic_bronze`, `banvic_silver` e `banvic_gold` no Unity Catalog com 35 tabelas Delta.
+**O cluster foi encerrado no meio da execução**
+```
+O Community Edition encerra clusters após 2h de inatividade.
+Clique em "Reconnect" no notebook ou recrie o cluster.
+O progresso não é perdido — os dados já salvos em Delta continuam lá.
+```
 
-### Bronze — 25 tabelas Delta carregadas
-
-![Output 01_bronze](prints/Output%20do%2001_bronze.png)
-
-### Silver — 6 tabelas transformadas
-
-![Output 02_silver](prints/Output%20do%2002_silver.png)
-
-### Validação — 8/8 KPIs aprovados
-
-![Resumo final](prints/resumo_final.png)
-
-> KPI1: saldo R$ 26.509.620,12 — exatamente o gabarito. Zero divergência.
+**Diferença nos KPIs**
+```
+Certifique que o cluster usa DBR 14.3 LTS (não outra versão).
+Certifique que os CSVs foram carregados nos caminhos corretos.
+```
 
 ---
 

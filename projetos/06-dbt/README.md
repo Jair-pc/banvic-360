@@ -60,6 +60,8 @@ projetos/06-dbt/banvic_dbt/
 
 ## Como executar
 
+### Pré-requisitos
+
 O banco precisa estar rodando com os dados Bronze carregados:
 
 ```bash
@@ -82,19 +84,38 @@ cd projetos/06-dbt
 chmod +x run.sh && ./run.sh
 ```
 
+**O que você vai ver na tela:**
+```
+Running with dbt=1.8.0
+
+Found 17 models, 23 tests, 1 source
+
+Concurrency: 4 threads
+
+1 of 17 START sql table model silver.clientes ..................... [RUN]
+1 of 17 OK created sql table model silver.clientes ............... [SELECT 50998 in 3.21s]
+2 of 17 START sql table model silver.contas ...................... [RUN]
+...
+17 of 17 OK created sql table model gold.fato_propostas_credito .. [SELECT 56635 in 2.11s]
+
+Finished running 17 table models in 0 hours 0 minutes and 42 seconds.
+
+Completed successfully.
+```
+
 ### Comandos individuais
 
 ```bash
 # Transformar Bronze → Silver → Gold
 docker compose run --rm dbt run --profiles-dir /banvic_dbt
 
-# Rodar testes
+# Rodar os testes de qualidade de dados
 docker compose run --rm dbt test --profiles-dir /banvic_dbt
 
-# Gerar documentação
+# Gerar a documentação
 docker compose run --rm dbt docs generate --profiles-dir /banvic_dbt
 
-# Ver a documentação no navegador (http://localhost:8081)
+# Abrir a documentação no navegador (http://localhost:8081)
 docker compose run --rm -p 8081:8080 dbt docs serve
 ```
 
@@ -104,11 +125,17 @@ docker compose run --rm -p 8081:8080 dbt docs serve
 pip install dbt-postgres==1.8.0
 cd projetos/06-dbt/banvic_dbt
 
-# Definir variáveis de conexão (Linux/Mac)
+# Variáveis de conexão (Linux/Mac)
 export BANVIC_PG_HOST=localhost
 export BANVIC_PG_USER=banvic_user
 export BANVIC_PG_PASSWORD=banvic_pass
 export BANVIC_PG_DATABASE=banvic
+
+# Variáveis de conexão (Windows PowerShell)
+$env:BANVIC_PG_HOST="localhost"
+$env:BANVIC_PG_USER="banvic_user"
+$env:BANVIC_PG_PASSWORD="banvic_pass"
+$env:BANVIC_PG_DATABASE="banvic"
 
 dbt run --profiles-dir .
 dbt test --profiles-dir .
@@ -116,7 +143,7 @@ dbt test --profiles-dir .
 
 ---
 
-## Como funciona o dbt
+## Como o dbt funciona na prática
 
 ### `{{ ref() }}` — dependências declaradas
 
@@ -129,9 +156,9 @@ FROM {{ ref('silver_transacoes') }}   -- dbt sabe que depende de silver_transaco
 JOIN {{ ref('dim_tempo') }}           -- e de dim_tempo
 ```
 
-O dbt descobre a ordem correta de execução sozinho — você não precisa se preocupar.
+O dbt descobre a ordem correta de execução sozinho — você não precisa se preocupar com sequência.
 
-### Testes automáticos
+### Testes automáticos no YAML
 
 ```yaml
 # schema.yml
@@ -144,7 +171,7 @@ models:
           - unique        # nunca pode repetir
 ```
 
-Rodar `dbt test` verifica isso automaticamente em todas as tabelas.
+Rodar `dbt test` verifica isso automaticamente. Se uma coluna tiver nulo ou duplicata, o teste falha com mensagem clara.
 
 ---
 
@@ -157,6 +184,35 @@ Rodar `dbt test` verifica isso automaticamente em todas as tabelas.
 | `accepted_values` | `silver.transacoes.canal` | Canal só aceita os 9 valores mapeados |
 | `relationships` | `fato_transacoes → dim_tempo` | Toda transação tem uma data válida |
 | Singular test | `assert_kpi1_validacao.sql` | Saldo total bate com o gabarito |
+
+---
+
+## Se algo não funcionar
+
+**"Could not find profile named 'banvic'"**
+```bash
+# O arquivo profiles.yml não foi encontrado
+# Use o flag --profiles-dir apontando para a pasta correta:
+dbt run --profiles-dir projetos/06-dbt/banvic_dbt
+```
+
+**"Could not connect to banvic database"**
+```bash
+docker compose up -d   # na raiz do projeto
+# Verifique as variáveis de ambiente BANVIC_PG_HOST, BANVIC_PG_USER, etc.
+```
+
+**"Relation bronze_clientes does not exist"**
+```bash
+python scripts/carga_bronze.py   # carrega o Bronze primeiro
+```
+
+**Teste falhou — o que fazer?**
+```bash
+# Ver detalhes do teste que falhou:
+dbt test --profiles-dir . --select silver_clientes
+# O dbt mostra quantas linhas falharam e o SQL que foi executado
+```
 
 ---
 

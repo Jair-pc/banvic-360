@@ -10,7 +10,7 @@ Este projeto faz o mesmo pipeline do BanVic usando o **Apache Airflow** — uma 
 
 Nos projetos anteriores, você roda os scripts manualmente. Mas em produção, ninguém vai abrir o terminal todo dia às 6h para digitar `python pipeline.py`.
 
-O Airflow funciona como um gerente de tarefas: você define o que precisa ser feito, em que ordem, em que horário, e o que acontece se algo der errado. Ele cuida do resto.
+O Airflow funciona como um **gerente de tarefas**: você define o que precisa ser feito, em que ordem, em que horário, e o que acontece se algo der errado. Ele cuida do resto.
 
 ---
 
@@ -42,7 +42,7 @@ No Airflow, um pipeline é chamado de **DAG** (Directed Acyclic Graph — grafo 
 ```
 [Verificar Bronze]          ← Para tudo se os dados não chegaram ainda
        |
-[Preparar ambiente]         ← Limpar tabelas para recarregar
+[Preparar ambiente]         ← Limpa tabelas para recarregar sem duplicatas
        |
 ┌──────┴──────────────────────────────────────────────┐
 │          Silver (7 tarefas em paralelo)              │
@@ -105,22 +105,66 @@ Abra `http://localhost:8080` no navegador.
 
 Na interface:
 1. Encontre a DAG `banvic_pipeline`
-2. Ative o botão (está pausada por padrão)
+2. Ative o botão de play (está pausada por padrão para não rodar sozinha)
 3. Clique em **Trigger DAG** para rodar agora
+
+**O que você vai ver:**
+
+Cada tarefa fica colorida em tempo real:
+- Cinza = esperando
+- Amarelo = rodando
+- Verde = concluído com sucesso
+- Vermelho = falhou
 
 ### Ver o resultado da validação
 
-Na interface: clique em `banvic_pipeline` → `validar_kpis` → **Logs**
+Na interface do Airflow: clique em `banvic_pipeline` → clique em `validar_kpis` → clique em **Logs**
 
 Ou no terminal:
 ```bash
 docker logs banvic_airflow_scheduler | grep -i "aprovad\|falhou"
 ```
 
+### Verificar as respostas no banco
+
+```bash
+python scripts/validar_gabarito_pg.py
+```
+
 ### Parar o Airflow
 
 ```bash
 docker compose down
+```
+
+---
+
+## Se algo não funcionar
+
+**Airflow demora para aparecer em localhost:8080**
+
+É normal — o Airflow leva 1-2 minutos para iniciar completamente. Aguarde e recarregue a página.
+
+**"DAG banvic_pipeline não aparece na lista"**
+```bash
+# Veja se o arquivo foi carregado corretamente
+docker logs banvic_airflow_scheduler | grep "banvic"
+# Aguarde 30 segundos — o Airflow verifica novos DAGs periodicamente
+```
+
+**Tarefa Silver falhou (vermelho)**
+```bash
+# Clique na tarefa → Logs para ver o erro específico
+# Geralmente é problema de conexão com o banco ou Bronze não carregado
+
+# Verificar o banco:
+docker ps   # banvic_postgres deve estar "healthy"
+```
+
+**"connection refused to banvic_postgres"**
+```bash
+# O Airflow usa a rede banvic_net — o banco precisa estar rodando
+docker compose up -d   # na raiz do projeto
 ```
 
 ---

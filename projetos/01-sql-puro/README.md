@@ -46,21 +46,43 @@ projetos/01-sql-puro/sql/
 
 ## Como executar
 
-Antes de começar, o banco precisa estar rodando com os dados carregados:
+### Jeito mais fácil — um comando só
+
+Na raiz do projeto (não dentro de `projetos/01-sql-puro`):
 
 ```bash
-# Na raiz do projeto
-docker compose up -d
-python scripts/carga_bronze.py
+python scripts/entrypoint.py
 ```
 
-Depois execute na ordem:
+Esse comando faz tudo: sobe o banco, carrega os CSVs, transforma os dados e valida as 8 KPIs. Demora cerca de 5 minutos na primeira vez.
+
+**O que você vai ver na tela:**
+```
+[1/5] Configurando schemas...        OK
+[2/5] Carregando Bronze (35 tabelas, 3.7M+ linhas)...  OK
+[3/5] Transformando Silver...        OK
+[4/5] Populando Gold...              OK
+[5/5] Validando KPIs...
+  KPI1: OK (26509620.12)
+  KPI2: OK
+  ...
+7/7 KPIs aprovados
+```
+
+### Jeito manual — passo a passo
+
+Se quiser entender o que cada arquivo faz separadamente:
 
 ```bash
-# 1. Preencher as dimensões (tabelas de referência)
+# Pré-requisito: banco rodando com Bronze carregado
+docker compose up -d
+python scripts/carga_bronze.py
+
+# 1. Preencher as dimensões (tabelas de referência: clientes, agências, tempo...)
+psql -U banvic_user -d banvic -f sql/02_silver/ddl_silver_transforms.sql
 psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/01_populate_dims.sql
 
-# 2. Preencher os fatos (dados das transações, contas, propostas)
+# 2. Preencher os fatos (transações, contas, propostas)
 psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/02_populate_fatos.sql
 
 # 3. Criar os índices (deixa as consultas mais rápidas)
@@ -68,6 +90,38 @@ psql -U banvic_user -d banvic -f projetos/01-sql-puro/sql/03_indices.sql
 
 # 4. Verificar se as respostas estão corretas
 python scripts/validar_gabarito_pg.py
+```
+
+### Se o psql não funcionar no Windows
+
+No Windows, o psql pode não estar no PATH. Use o pgAdmin:
+
+1. Abra `http://localhost:5050` no navegador
+2. Login: `admin@banvic.local` / Senha: `admin`
+3. Conecte no servidor `banvic_postgres` (senha: `banvic_pass`)
+4. Abra o Query Tool e cole o conteúdo de cada arquivo SQL
+
+---
+
+## Se algo não funcionar
+
+**"relation does not exist" (tabela não existe)**
+```bash
+# O banco não foi configurado ainda. Execute:
+python scripts/entrypoint.py
+```
+
+**"connection refused" (não conecta)**
+```bash
+docker ps   # veja se banvic_postgres está na lista
+docker compose up -d   # sobe se não estiver
+```
+
+**"psql: command not found" (psql não encontrado)**
+```bash
+# Verifique se o PostgreSQL está instalado, ou use o pgAdmin (localhost:5050)
+# Ou execute dentro do container:
+docker exec -i banvic_postgres psql -U banvic_user -d banvic < projetos/01-sql-puro/sql/01_populate_dims.sql
 ```
 
 ---
@@ -87,7 +141,7 @@ Este projeto mostra que dá para fazer um pipeline completo só com SQL. Mas tam
 | Técnica | Para que serve |
 |---|---|
 | Window Functions (`ROW_NUMBER OVER PARTITION BY`) | Encontrar o registro mais recente de cada cliente |
-| CTEs (WITH ...) | Separar cálculos complexos antes de juntar tudo |
+| CTEs (`WITH ...`) | Separar cálculos complexos antes de juntar tudo |
 | Índices cobertos (`INCLUDE`) | Responder consultas sem nem acessar a tabela principal |
 | Índices parciais (`WHERE eh_conta_ativa`) | Índice menor, só para os registros que importam |
 | `ON CONFLICT DO NOTHING` | Inserir sem erro mesmo se o registro já existir |

@@ -41,6 +41,8 @@ projetos/03-apache-hop/
 └── run.sh                           Execução no Linux/Mac
 ```
 
+**O que são os arquivos `.hpl` e `.hwf`?** São os arquivos do Apache Hop. `.hpl` é um pipeline (sequência de transformações). `.hwf` é um workflow (orquestrador que chama os pipelines na ordem certa). Você pode abri-los na interface visual do Hop para ver o diagrama.
+
 ---
 
 ## Como executar
@@ -51,11 +53,12 @@ O banco precisa estar rodando com os dados Bronze carregados:
 
 ```bash
 # Na raiz do projeto
+pip install -r requirements.txt
 docker compose up -d
-python scripts/carga_bronze.py
+python scripts/entrypoint.py   # carrega Bronze e cria os schemas
 ```
 
-### Rodar via Docker (recomendado)
+### Rodar via Docker (recomendado — sem instalar o Hop)
 
 **Windows:**
 ```bat
@@ -69,12 +72,27 @@ cd projetos/03-apache-hop
 chmod +x run.sh && ./run.sh
 ```
 
-### Ver o pipeline na interface visual
+**O que você vai ver na tela:**
+```
+Starting Apache Hop container...
+Running workflow: 00_banvic_pipeline.hwf
 
-1. Baixe o Apache Hop em [hop.apache.org](https://hop.apache.org)
-2. Abra o Hop GUI
-3. Vá em **Arquivo → Novo Projeto** e aponte para `projetos/03-apache-hop/hop/`
-4. Abra qualquer arquivo `.hpl` para ver o pipeline visualmente
+2024/01/15 10:23:01 - Limpando tabelas Silver e Gold...    OK
+2024/01/15 10:23:03 - Pipeline Silver (01_silver.hpl)...   OK  (12.4s)
+2024/01/15 10:23:15 - Pipeline Gold Dims (02_gold_dims.hpl)... OK  (3.1s)
+2024/01/15 10:23:18 - Pipeline Gold Fatos (03_gold_fatos.hpl)... OK  (8.2s)
+
+Workflow concluido com sucesso!
+```
+
+### Ver o pipeline visualmente (opcional)
+
+Para ver o diagrama dos pipelines na interface do Hop:
+
+1. Baixe o Apache Hop em [hop.apache.org](https://hop.apache.org/download/)
+2. Abra o aplicativo `hop-gui.bat` (Windows) ou `hop-gui.sh` (Linux/Mac)
+3. Vá em **File → Open Project** e aponte para `projetos/03-apache-hop/hop/`
+4. Abra qualquer arquivo `.hpl` para ver o pipeline em blocos
 
 ### Verificar as respostas
 
@@ -96,20 +114,44 @@ O bloco "Gera 1 linha" é o ponto de partida — ele dispara o fluxo.
 Cada bloco "Executa SQL" roda uma instrução SQL no banco.
 Se qualquer bloco falhar, o workflow para e registra o erro.
 
-### Fluxo de controle (workflow)
+### Fluxo de controle do workflow principal
 
 ```
 Início
   ↓
-Limpar tabelas (evitar dados duplicados)
-  ↓ sucesso         ↓ erro
-Silver             PARAR
-  ↓ sucesso         ↓ erro
-Gold Dimensões     PARAR
-  ↓ sucesso         ↓ erro
-Gold Fatos         PARAR
+[Limpar tabelas]   ← evita dados duplicados
+  ↓ sucesso          ↓ erro
+[Silver]           [PARAR + log de erro]
+  ↓ sucesso          ↓ erro
+[Gold Dimensões]   [PARAR + log de erro]
+  ↓ sucesso          ↓ erro
+[Gold Fatos]       [PARAR + log de erro]
   ↓
-Sucesso!
+[Sucesso!]
+```
+
+---
+
+## Se algo não funcionar
+
+**"Cannot connect to banvic_postgres"**
+```bash
+# O banco precisa estar na rede banvic_net
+docker network ls   # verifique se banvic_net existe
+docker compose up -d   # na raiz do projeto
+```
+
+**Container Hop sobe mas não encontra os arquivos**
+```bash
+# Certifique que está rodando o run.bat de dentro da pasta do projeto
+cd projetos\03-apache-hop
+run.bat
+```
+
+**"Table does not exist" no pipeline Silver**
+```bash
+# Bronze não foi carregado ainda
+python scripts/entrypoint.py   # na raiz do projeto
 ```
 
 ---
@@ -119,10 +161,10 @@ Sucesso!
 | O que você precisa | Hop | Python/SQL |
 |---|---|---|
 | Ver o fluxo visualmente | Sim — arrastar e soltar | Não — precisa ler código |
-| Modificar um passo | Clicar + editar | Editar arquivo de código |
+| Modificar um passo | Clicar + editar campo | Editar arquivo de código |
 | Debug (ver dados no meio) | Sim — preview de dados em cada bloco | `df.head()` ou logs |
 | Rastreabilidade dos dados | Sim — nativo | Manual |
-| Portabilidade entre bancos | Sim — troca a conexão | Depende do código |
+| Portabilidade entre bancos | Sim — troca só a conexão | Depende do código |
 | Curva de aprendizado | Baixa | Média a alta |
 | Time sem programadores | Sim | Não |
 

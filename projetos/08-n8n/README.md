@@ -16,12 +16,12 @@ O resultado é visual e interativo: você vê cada bloco ficando verde (sucesso)
 
 ## Por que o n8n é diferente do Airflow
 
-Ambos agendам e orquestram pipelines. A diferença é quem consegue usar:
+Ambos agendam e orquestram pipelines. A diferença é quem consegue usar:
 
 | Aspecto | Airflow (Projeto 5) | n8n (Projeto 8) |
 |---|---|---|
 | Como você define o pipeline | Código Python | Arrastar blocos na tela |
-| Modificar um passo | Editar arquivo + fazer novo deploy | Clicar no bloco + salvar |
+| Modificar um passo | Editar arquivo + novo deploy | Clicar no bloco + salvar |
 | Ver o fluxo funcionando | Diagrama estático | Animação em tempo real |
 | Lidar com erros | `try/except` no código | Bloco `IF` com seta vermelha |
 | Enviar alerta por e-mail ou Slack | Configurar no código | Bloco nativo, pronto |
@@ -32,8 +32,6 @@ Ambos agendам e orquestram pipelines. A diferença é quem consegue usar:
 ---
 
 ## Resultado
-
-Os mesmos números de todos os outros projetos:
 
 | KPI | Resultado |
 |---|---|
@@ -63,7 +61,7 @@ projetos/08-n8n/
 ### Pré-requisitos
 
 - Docker Desktop instalado e rodando
-- CSVs do BanVic disponíveis (veja como obter em `/README.md`)
+- CSVs do BanVic disponíveis (veja como obter na raiz do projeto)
 
 ### 1. Subir os containers
 
@@ -80,24 +78,32 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+O build pode demorar 2-3 minutos na primeira vez (baixa a imagem do n8n).
+
 ### 2. Acessar o n8n
 
 Abra `http://localhost:5678` no navegador.
 - Login: `admin`
 - Senha: `banvic2024`
 
+**O que você vai ver:** a interface do n8n com espaço em branco. Os workflows ainda não foram importados.
+
 ### 3. Importar os workflows
 
 ```
-Menu lateral → Settings → Import
-Selecionar: workflows/01_pipeline_banvic.json
-Selecionar: workflows/02_validar_kpis.json
+Menu lateral → Settings → Import from file
+→ Selecionar: workflows/01_pipeline_banvic.json
+
+Menu lateral → Settings → Import from file
+→ Selecionar: workflows/02_validar_kpis.json
 ```
+
+Depois do import, dois workflows aparecem na lista.
 
 ### 4. Configurar a conexão com o banco
 
 ```
-Settings → Credentials → New → PostgreSQL
+Menu lateral → Credentials → Add Credential → PostgreSQL
   Nome:     BanVic PostgreSQL
   Host:     postgres
   Port:     5432
@@ -105,6 +111,8 @@ Settings → Credentials → New → PostgreSQL
   User:     banvic_user
   Password: banvic_pass
 ```
+
+Clique em **Test** para verificar se conectou. Deve aparecer "Connection successful".
 
 ### 5. Carregar os dados Bronze (se necessário)
 
@@ -114,9 +122,9 @@ docker exec banvic_n8n python3 /data/banvic/scripts/carga_bronze.py
 
 ### 6. Executar o pipeline
 
-Abra o workflow `BanVic 360 - Pipeline ETL Completo` → clique **Executar**.
+Abra o workflow `BanVic 360 - Pipeline ETL Completo` → clique em **Execute Workflow**.
 
-Observe os blocos ficando verdes em tempo real.
+Observe os blocos ficando verdes em tempo real. Se um bloco ficar vermelho, clique nele para ver o erro.
 
 ---
 
@@ -140,7 +148,7 @@ Observe os blocos ficando verdes em tempo real.
          ↓
 [Aprovado?]                ← bloco IF com duas saídas
     ↓              ↓
-[Sucesso]      [Falhou]
+[Sucesso]      [Falhou: envia alerta]
 ```
 
 ---
@@ -156,6 +164,35 @@ psql -f /data/banvic/projetos/01-sql-puro/sql/02_populate_fatos.sql
 ```
 
 Isso mostra o papel correto do n8n: ele é um **orquestrador**, não um reescritor. Você não joga fora o SQL que já funciona — você o agenda e monitora visualmente.
+
+---
+
+## Se algo não funcionar
+
+**n8n não abre em localhost:5678**
+```bash
+docker ps   # verifique se banvic_n8n está na lista
+docker logs banvic_n8n --tail 30   # veja o log de inicialização
+```
+
+**"Credential not found" ao executar o workflow**
+```
+O workflow foi importado mas a credencial não foi criada ainda.
+Volte ao Passo 4 e configure a credencial PostgreSQL.
+```
+
+**Bloco vermelho "Execute Command"**
+```
+O script SQL não conseguiu conectar ao banco.
+Verifique se o container postgres está rodando:
+docker ps | grep postgres
+```
+
+**"Table does not exist" no bloco Silver**
+```bash
+# Bronze não foi carregado
+docker exec banvic_n8n python3 /data/banvic/scripts/carga_bronze.py
+```
 
 ---
 
