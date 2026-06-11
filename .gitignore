@@ -50,3 +50,13 @@ desktop.ini
 # Temporários
 *.tmp
 *.bak
+
+# Arquivos internos de IA (instrucoes de sessao — nao vao para o repo)
+CLAUDE.md
+AGENTS.md
+
+# Referências externas (projetos de exemplo locais)
+referências/
+
+# Documentação interna (arquitetura, roadmap, gabarito — não vai para o repo)
+docs/

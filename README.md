@@ -109,6 +109,24 @@ Gabarito calculado em: `docs/gabarito/gabarito.json`
 | `data/sintetico/` | 2.6M+ transações | Expansão sintética (50k clientes) |
 | `external_data/` | 14 datasets | BCB (Selic, CDI, IPCA), IBGE, Open-Meteo |
 
+### Escala dos dados sintéticos
+
+| Arquivo | Registros | Distribuição |
+|---|---|---|
+| `clientes_sinteticos.csv` | 50.000 | Renda lognormal (mediana ~R$3.5k), score correlacionado com renda |
+| `contas_sinteticas.csv` | ~70.000 | 1–3 contas por cliente, 65% têm 1 conta |
+| `transacoes_sinteticas.csv` | 2.642.400 | Sazonalidade mensal (dez=140%, fev=80%) |
+| `propostas_sinteticas.csv` | ~56.000 | Taxa de aprovação varia por faixa de score |
+| `investimentos.csv` | ~16.000 | Probabilidade maior com renda e score altos |
+| `cartoes.csv` | ~537.000 | Faturas mensais; 75% pagam total |
+| `seguros.csv` | ~17.000 | 25% são cross-sell |
+| `inadimplencia.csv` | ~468 | Buckets 0-30 / 31-60 / 61-90 / 90+ dias |
+| `fraudes.csv` | ~1.400 | 65% tentativas, 35% confirmadas |
+| `agencias_expandidas.csv` | 100 | Timeline: 10 (2023) → 20 (2024) → 50 (2025) → 100 (2026) |
+| `colaboradores_expandidos.csv` | 1.200 | 4 níveis hierárquicos com cargo, salário e agência |
+
+Todos os dados sintéticos são reprodutíveis com `--seed 42`.
+
 ---
 
 ## Documentação
