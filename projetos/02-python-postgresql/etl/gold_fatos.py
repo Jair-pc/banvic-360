@@ -75,7 +75,7 @@ def _popular_fato_contas(engine):
     dt["data"]   = pd.to_datetime(dt["data"]).dt.date
     contas["data_ultimo_lancamento"] = pd.to_datetime(
         contas["data_ultimo_lancamento"], errors="coerce"
-    ).dt.date
+    ).fillna(pd.Timestamp.today().normalize()).dt.date
     contas["cod_cliente"]    = contas["cod_cliente"].astype("Int32")
     contas["cod_agencia"]    = contas["cod_agencia"].astype("Int32")
     contas["cod_colaborador"] = contas["cod_colaborador"].astype("Int32")

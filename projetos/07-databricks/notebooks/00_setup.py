@@ -9,10 +9,10 @@
 
 # COMMAND ----------
 
-BASE_PATH   = "/FileStore/banvic"
-CSV_BANVIC  = f"{BASE_PATH}/csv/banvic"
-CSV_SINT    = f"{BASE_PATH}/csv/sintetico"
-CSV_EXT     = f"{BASE_PATH}/csv/external_data"
+BASE_PATH   = "/Volumes/workspace/banvic/data"
+CSV_BANVIC  = f"{BASE_PATH}/banvic"
+CSV_SINT    = f"{BASE_PATH}/sintetico"
+CSV_EXT     = f"{BASE_PATH}/external_data"
 BRONZE_PATH = f"{BASE_PATH}/bronze"
 SILVER_PATH = f"{BASE_PATH}/silver"
 GOLD_PATH   = f"{BASE_PATH}/gold"

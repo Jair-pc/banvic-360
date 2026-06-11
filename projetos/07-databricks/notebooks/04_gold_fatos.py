@@ -9,7 +9,7 @@
 
 # COMMAND ----------
 
-GOLD_PATH = "/FileStore/banvic/gold"
+GOLD_PATH = "/Volumes/workspace/banvic/data/gold"
 
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
@@ -19,7 +19,6 @@ def write_gold(df, table: str) -> None:
      .format("delta")
      .mode("overwrite")
      .option("overwriteSchema", "true")
-     .option("path", f"{GOLD_PATH}/{table}")
      .saveAsTable(f"banvic_gold.{table}"))
     print(f"  OK  banvic_gold.{table:30s} {df.count():>10,} linhas")
 
@@ -58,7 +57,7 @@ fato_contas = (contas
     .drop("data_abertura_join")
     .select(
         "num_conta", "cod_cliente", "cod_agencia", "cod_colaborador",
-        "tipo_conta", "saldo_total", "limite_credito",
+        "tipo_conta", "saldo_total",
         "data_abertura", "data_ultimo_lancamento", "eh_conta_ativa",
         "sk_cliente", "sk_agencia", "sk_colaborador", "sk_tempo_abertura"
     )
@@ -103,7 +102,10 @@ write_gold(fato_transacoes, "fato_transacoes")
 
 # COMMAND ----------
 
-propostas = spark.table("banvic_bronze.propostas_credito")
+propostas = (spark.table("banvic_bronze.propostas_credito")
+    .withColumnRenamed("data_entrada_proposta", "data_proposta")
+    .withColumnRenamed("taxa_juros_mensal",      "taxa_juros")
+    .withColumnRenamed("quantidade_parcelas",    "prazo_meses"))
 
 fato_propostas = (propostas
     .withColumn("data_proposta",  F.col("data_proposta").cast("date"))
@@ -112,14 +114,13 @@ fato_propostas = (propostas
     .withColumn("prazo_meses",    F.col("prazo_meses").cast("integer"))
     .join(dim_tempo.withColumnRenamed("dim_data", "data_prop_join"),
           F.col("data_proposta") == F.col("data_prop_join"), "left").drop("data_prop_join")
-    .join(dim_cliente, on="cod_cliente",     how="left")
-    .join(dim_agencia, on="cod_agencia",     how="left")
+    .join(dim_cliente, on="cod_cliente",   how="left")
     .join(dim_colab,   on="cod_colaborador", how="left")
     .select(
-        "cod_proposta", "cod_cliente", "cod_agencia", "cod_colaborador",
+        "cod_proposta", "cod_cliente", "cod_colaborador",
         "data_proposta", "valor_proposta", "status_proposta",
-        "tipo_credito", "prazo_meses", "taxa_juros",
-        "sk_tempo", "sk_cliente", "sk_agencia", "sk_colaborador"
+        "prazo_meses", "taxa_juros",
+        "sk_tempo", "sk_cliente", "sk_colaborador"
     )
 )
 write_gold(fato_propostas, "fato_propostas_credito")

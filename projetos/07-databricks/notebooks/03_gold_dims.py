@@ -11,7 +11,7 @@
 
 # COMMAND ----------
 
-GOLD_PATH = "/FileStore/banvic/gold"
+GOLD_PATH = "/Volumes/workspace/banvic/data/gold"
 
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
@@ -22,7 +22,6 @@ def write_gold(df, table: str) -> None:
      .format("delta")
      .mode("overwrite")
      .option("overwriteSchema", "true")
-     .option("path", f"{GOLD_PATH}/{table}")
      .saveAsTable(f"banvic_gold.{table}"))
     print(f"  OK  banvic_gold.{table:30s} {df.count():>10,} linhas")
 
@@ -43,16 +42,16 @@ df_base = spark.createDataFrame(dates, ["data"])
 # Carregar indicadores macroeconomicos
 selic = (spark.table("banvic_bronze.selic")
          .select(F.col("data").cast("date").alias("selic_data"),
-                 F.col("valor").cast("double").alias("taxa_selic")))
+                 F.col("taxa_selic").cast("double").alias("taxa_selic")))
 
 cdi = (spark.table("banvic_bronze.cdi")
        .select(F.col("data").cast("date").alias("cdi_data"),
-               F.col("valor").cast("double").alias("taxa_cdi")))
+               F.col("taxa_cdi").cast("double").alias("taxa_cdi")))
 
 ipca = (spark.table("banvic_bronze.ipca")
         .select(F.col("data").cast("date").alias("ipca_data"),
-                F.col("valor").cast("double").alias("ipca_mensal"),
-                F.col("acumulado_base_2010").cast("double").alias("ipca_acumulado")))
+                F.col("no_mes").cast("double").alias("ipca_mensal"),
+                F.col("indice").cast("double").alias("ipca_acumulado")))
 
 ptax = (spark.table("banvic_bronze.dolar_ptax")
         .select(F.col("data").cast("date").alias("ptax_data"),
@@ -60,7 +59,7 @@ ptax = (spark.table("banvic_bronze.dolar_ptax")
 
 feriados = (spark.table("banvic_bronze.feriados")
             .select(F.col("data").cast("date").alias("feriado_data"),
-                    F.col("descricao").alias("nome_feriado")))
+                    F.col("nome_feriado").alias("nome_feriado")))
 
 # Construir dim_tempo com joins
 dim_tempo = (df_base

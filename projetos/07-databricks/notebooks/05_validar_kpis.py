@@ -26,12 +26,14 @@ resultados = {}
 kpi1 = spark.sql("""
     SELECT
         a.cod_agencia,
-        a.nome_agencia,
+        a.nome AS nome_agencia,
         ROUND(SUM(c.saldo_total), 2)   AS saldo_total,
         COUNT(c.num_conta)             AS qtd_contas
     FROM banvic_gold.fato_contas c
     JOIN banvic_gold.dim_agencia a ON c.sk_agencia = a.sk_agencia
-    GROUP BY a.cod_agencia, a.nome_agencia
+    WHERE c.num_conta  IN (SELECT num_conta  FROM banvic_bronze.contas)
+      AND c.cod_cliente IN (SELECT cod_cliente FROM banvic_bronze.clientes)
+    GROUP BY a.cod_agencia, a.nome
     ORDER BY saldo_total DESC
 """)
 kpi1.display()
@@ -117,13 +119,15 @@ resultados["KPI4"] = "CALCULADO"
 kpi5 = spark.sql("""
     SELECT
         a.cod_agencia,
-        a.nome_agencia,
+        a.nome AS nome_agencia,
         ROUND(SUM(c.saldo_total), 2)                                 AS saldo_total,
         COUNT(c.num_conta)                                           AS qtd_contas,
         RANK() OVER (ORDER BY SUM(c.saldo_total) DESC)               AS ranking_saldo
     FROM banvic_gold.fato_contas c
     JOIN banvic_gold.dim_agencia a ON c.sk_agencia = a.sk_agencia
-    GROUP BY a.cod_agencia, a.nome_agencia
+    WHERE c.num_conta  IN (SELECT num_conta  FROM banvic_bronze.contas)
+      AND c.cod_cliente IN (SELECT cod_cliente FROM banvic_bronze.clientes)
+    GROUP BY a.cod_agencia, a.nome
     ORDER BY ranking_saldo
 """)
 kpi5.display()

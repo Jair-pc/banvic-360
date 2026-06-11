@@ -9,10 +9,10 @@
 
 # COMMAND ----------
 
-BASE_PATH   = "/FileStore/banvic"
-CSV_BANVIC  = f"{BASE_PATH}/csv/banvic"
-CSV_SINT    = f"{BASE_PATH}/csv/sintetico"
-CSV_EXT     = f"{BASE_PATH}/csv/external_data"
+BASE_PATH   = "/Volumes/workspace/banvic/data"
+CSV_BANVIC  = f"{BASE_PATH}/banvic"
+CSV_SINT    = f"{BASE_PATH}/sintetico"
+CSV_EXT     = f"{BASE_PATH}/external_data"
 BRONZE_PATH = f"{BASE_PATH}/bronze"
 
 # COMMAND ----------
@@ -30,7 +30,6 @@ def load_csv(path: str, table: str, sep: str = ",") -> int:
      .format("delta")
      .mode("overwrite")
      .option("overwriteSchema", "true")
-     .option("path", f"{BRONZE_PATH}/{table}")
      .saveAsTable(f"banvic_bronze.{table}"))
 
     n = df.count()
@@ -81,9 +80,8 @@ total += load_csv(f"{CSV_EXT}/macroeconomia/ipca.csv",           "ipca")
 total += load_csv(f"{CSV_EXT}/macroeconomia/dolar_ptax.csv",     "dolar_ptax")
 total += load_csv(f"{CSV_EXT}/macroeconomia/euro_ptax.csv",      "euro_ptax")
 total += load_csv(f"{CSV_EXT}/macroeconomia/desemprego.csv",     "desemprego")
-total += load_csv(f"{CSV_EXT}/macroeconomia/pib_trimestral.csv", "pib_trimestral")
-total += load_csv(f"{CSV_EXT}/geografia/municipios_ibge.csv",    "municipios_ibge")
-total += load_csv(f"{CSV_EXT}/geografia/feriados.csv",           "feriados")
+total += load_csv(f"{CSV_EXT}/geografia/municipios.csv",         "municipios_ibge")
+total += load_csv(f"{CSV_EXT}/calendario/feriados.csv",          "feriados")
 
 print(f"\nTotal Bronze: {total:,} linhas em todas as tabelas")
 

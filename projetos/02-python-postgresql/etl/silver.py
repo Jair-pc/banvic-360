@@ -27,7 +27,13 @@ REGIAO_MAP = {
 
 def _calcular_idade(dt_serie: pd.Series) -> pd.Series:
     hoje = pd.Timestamp.today().normalize()
-    return ((hoje - dt_serie).dt.days // 365).astype("Int16")
+    ainda_nao_fez_aniversario = (
+        (dt_serie.dt.month > hoje.month)
+        | ((dt_serie.dt.month == hoje.month) & (dt_serie.dt.day > hoje.day))
+    )
+    return (
+        hoje.year - dt_serie.dt.year - ainda_nao_fez_aniversario.astype("Int16")
+    ).astype("Int16")
 
 
 def _faixa_etaria(idade: pd.Series) -> pd.Series:
@@ -147,14 +153,15 @@ def _transform_contas(engine) -> int:
     df["data_abertura"] = pd.to_datetime(df["data_abertura"], errors="coerce").dt.date
     df["saldo_total"]       = pd.to_numeric(df["saldo_total"]).round(2)
     df["saldo_disponivel"]  = pd.to_numeric(df["saldo_disponivel"]).round(2)
-    df["data_ultimo_lancamento"] = pd.to_datetime(
+    datas_ultimo_lancamento = pd.to_datetime(
         df["data_ultimo_lancamento"], errors="coerce"
-    ).dt.date
+    )
 
     # Flag ativa relativa ao dataset (nao CURRENT_DATE)
-    max_date = df["data_ultimo_lancamento"].max()
-    cutoff = pd.to_datetime(max_date) - pd.Timedelta(days=90)
-    df["eh_conta_ativa"] = pd.to_datetime(df["data_ultimo_lancamento"]) >= cutoff
+    max_date = datas_ultimo_lancamento.max()
+    cutoff = max_date - pd.Timedelta(days=90)
+    df["eh_conta_ativa"] = datas_ultimo_lancamento >= cutoff
+    df["data_ultimo_lancamento"] = datas_ultimo_lancamento.dt.date
     df["_silver_ts"] = _silver_ts()
 
     out = df[[
@@ -181,8 +188,12 @@ def _transform_transacoes(engine) -> int:
 
     df["cod_transacao"]   = pd.to_numeric(df["cod_transacao"], errors="coerce").astype("Int32")
     df["num_conta"]       = pd.to_numeric(df["num_conta"], errors="coerce").astype("Int32")
-    df["data_transacao"]  = pd.to_datetime(df["data_transacao"], errors="coerce")
-    df["mes_referencia"]  = df["data_transacao"].dt.to_period("M").dt.to_timestamp().dt.date
+    df["data_transacao"] = pd.to_datetime(
+        df["data_transacao"], format="mixed", errors="coerce", utc=True
+    )
+    df["mes_referencia"] = (
+        df["data_transacao"].dt.tz_convert(None).dt.to_period("M").dt.to_timestamp().dt.date
+    )
     df["nome_transacao"]  = df["nome_transacao"].str.strip()
     df["valor_transacao"] = df["valor_transacao"].round(2)
     df["valor_absoluto"]  = df["valor_transacao"].abs()
@@ -331,7 +342,7 @@ def _transform_propostas(engine) -> int:
     orig = orig[orig["valor_proposta"].str.match(r"^[0-9]+\.?[0-9]*$", na=False)]
 
     sint = pd.read_sql(
-        "SELECT *, '' AS carencia FROM bronze.propostas_sinteticas WHERE cod_proposta IS NOT NULL",
+        "SELECT * FROM bronze.propostas_sinteticas WHERE cod_proposta IS NOT NULL",
         engine,
     )
     if "carencia" not in sint.columns:

@@ -4,14 +4,14 @@
 # MAGIC
 # MAGIC Transforma Bronze -> Silver:
 # MAGIC - Tipagem correta (string -> date, double, int)
-# MAGIC - UNION dos datasets originais + sinteticos
+# MAGIC - UNION dos datasets originais + sinteticos (schemas normalizados)
 # MAGIC - Deduplicacao por chave natural (mais recente vence)
 # MAGIC - Regras de DQ (campo nao-nulo, faixas validas)
 # MAGIC - Colunas derivadas: `canal`, `eh_conta_ativa`, `faixa_etaria`
 
 # COMMAND ----------
 
-SILVER_PATH = "/FileStore/banvic/silver"
+SILVER_PATH = "/Volumes/workspace/banvic/data/silver"
 
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
@@ -21,13 +21,15 @@ def write_silver(df, table: str) -> None:
      .format("delta")
      .mode("overwrite")
      .option("overwriteSchema", "true")
-     .option("path", f"{SILVER_PATH}/{table}")
      .saveAsTable(f"banvic_silver.{table}"))
     print(f"  OK  banvic_silver.{table:30s} {df.count():>10,} linhas")
 
 # COMMAND ----------
 
 # MAGIC %md ### Clientes — UNION real + sintetico, deduplicacao
+# MAGIC
+# MAGIC Schema real: `cod_cliente, primeiro_nome, ultimo_nome, cpfcnpj, data_nascimento, data_inclusao`
+# MAGIC Schema sint: `cod_cliente, nome, cpf, data_nascimento, sexo, estado_civil, ...`
 
 # COMMAND ----------
 
@@ -38,9 +40,15 @@ cols_clientes = [
     "profissao", "nivel_escolaridade", "produto_principal"
 ]
 
-clientes_real = spark.table("banvic_bronze.clientes").select(cols_clientes)
-clientes_sint = spark.table("banvic_bronze.clientes_sinteticos").select(cols_clientes)
-clientes_all  = clientes_real.union(clientes_sint)
+# Real: normalizar para o schema sintetico
+clientes_real = (spark.table("banvic_bronze.clientes")
+    .withColumn("nome", F.concat_ws(" ", F.col("primeiro_nome"), F.col("ultimo_nome")))
+    .withColumnRenamed("cpfcnpj", "cpf"))
+
+clientes_sint = spark.table("banvic_bronze.clientes_sinteticos")
+
+# unionByName preenche colunas ausentes com NULL
+clientes_all = clientes_real.unionByName(clientes_sint, allowMissingColumns=True)
 
 # Dedup: manter o registro mais recente por cod_cliente
 w_dedup = Window.partitionBy("cod_cliente").orderBy(F.desc("data_inclusao"))
@@ -66,12 +74,14 @@ write_silver(clientes_clean, "clientes")
 # COMMAND ----------
 
 # MAGIC %md ### Contas — UNION + flag eh_conta_ativa
+# MAGIC
+# MAGIC Real nao tem `limite_credito` nem `flag_ativa` — unionByName preenche com NULL.
 
 # COMMAND ----------
 
 contas_orig = spark.table("banvic_bronze.contas")
 contas_sint = spark.table("banvic_bronze.contas_sinteticas")
-contas_all  = contas_orig.union(contas_sint)
+contas_all  = contas_orig.unionByName(contas_sint, allowMissingColumns=True)
 
 # eh_conta_ativa: ativa se lancamento nos ultimos 90 dias antes do max do dataset
 max_lancamento = contas_all.agg(F.max("data_ultimo_lancamento")).collect()[0][0]
@@ -90,6 +100,8 @@ write_silver(contas_clean, "contas")
 # COMMAND ----------
 
 # MAGIC %md ### Transacoes — UNION + derivar canal
+# MAGIC
+# MAGIC Real e sintetico tem o mesmo schema: `cod_transacao, num_conta, data_transacao, nome_transacao, valor_transacao`
 
 # COMMAND ----------
 
@@ -141,22 +153,16 @@ write_silver(agencias_clean, "agencias")
 
 # COMMAND ----------
 
-# MAGIC %md ### Colaboradores — expandidos substituem originais
+# MAGIC %md ### Colaboradores — usar expandidos como fonte principal
+# MAGIC
+# MAGIC Original tem apenas nome/cpf sem cargo/salario. Expandidos ja inclui todos os originais.
+# MAGIC Schema expandidos: `primeiro_nome, ultimo_nome, salario_base` -> normalizar para `nome, salario`.
 
 # COMMAND ----------
 
-cols_col = [
-    "cod_colaborador", "nome", "cargo", "cod_agencia",
-    "data_admissao", "salario", "nivel_hierarquico", "cod_gerente"
-]
-
-colab_orig = spark.table("banvic_bronze.colaboradores").select(cols_col)
-colab_exp  = spark.table("banvic_bronze.colaboradores_expandidos").select(cols_col)
-
-# left_anti: originais que NAO existem nos expandidos
-colab_clean = (colab_orig
-    .join(colab_exp.select("cod_colaborador"), on="cod_colaborador", how="left_anti")
-    .union(colab_exp)
+colab_clean = (spark.table("banvic_bronze.colaboradores_expandidos")
+    .withColumn("nome",    F.concat_ws(" ", F.col("primeiro_nome"), F.col("ultimo_nome")))
+    .withColumnRenamed("salario_base", "salario")
     .withColumn("data_admissao", F.col("data_admissao").cast("date"))
     .withColumn("salario",       F.col("salario").cast("double"))
 )
@@ -165,20 +171,22 @@ write_silver(colab_clean, "colaboradores")
 # COMMAND ----------
 
 # MAGIC %md ### Propostas — UNION real + sintetico
+# MAGIC
+# MAGIC Renomear colunas para schema padrao:
+# MAGIC `data_entrada_proposta` -> `data_proposta`, `taxa_juros_mensal` -> `taxa_juros`, `quantidade_parcelas` -> `prazo_meses`
 
 # COMMAND ----------
 
-cols_prop = [
-    "cod_proposta", "cod_cliente", "cod_colaborador", "cod_agencia",
-    "data_proposta", "valor_proposta", "status_proposta",
-    "tipo_credito", "prazo_meses", "taxa_juros"
-]
+def normalizar_propostas(df):
+    return (df
+        .withColumnRenamed("data_entrada_proposta", "data_proposta")
+        .withColumnRenamed("taxa_juros_mensal",      "taxa_juros")
+        .withColumnRenamed("quantidade_parcelas",    "prazo_meses"))
 
-prop_orig = spark.table("banvic_bronze.propostas_credito").select(cols_prop)
-prop_sint = spark.table("banvic_bronze.propostas_sinteticas").select(cols_prop)
+prop_orig = normalizar_propostas(spark.table("banvic_bronze.propostas_credito"))
+prop_sint = normalizar_propostas(spark.table("banvic_bronze.propostas_sinteticas"))
 
-propostas_clean = (prop_orig
-    .union(prop_sint)
+propostas_clean = (prop_orig.unionByName(prop_sint, allowMissingColumns=True)
     .withColumn("data_proposta",  F.col("data_proposta").cast("date"))
     .withColumn("valor_proposta", F.col("valor_proposta").cast("double"))
     .withColumn("taxa_juros",     F.col("taxa_juros").cast("double"))
