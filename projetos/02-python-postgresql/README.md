@@ -151,7 +151,7 @@ pip install -r requirements.txt
 
 **"could not connect to server" (banco não conecta)**
 ```bash
-docker ps   # verifique se banvic_postgres está rodando
+docker ps   # verifique se banvic-base-postgres está rodando
 docker compose up -d
 ```
 

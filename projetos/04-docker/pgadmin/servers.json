@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "BanVic PostgreSQL",
+      "Group": "BanVic",
+      "Host": "banvic-p04-postgres",
+      "Port": 5432,
+      "MaintenanceDB": "banvic",
+      "Username": "banvic_user",
+      "SSLMode": "prefer"
+    }
+  }
+}

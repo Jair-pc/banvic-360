@@ -114,7 +114,15 @@ def etapa_silver(conn):
 
 def etapa_gold(conn):
     log("=== GOLD: Modelo dimensional ===")
+    with conn.cursor() as cur:
+        cur.execute("DROP SCHEMA IF EXISTS gold CASCADE; CREATE SCHEMA gold;")
+    conn.commit()
+    log("  OK: schema Gold reinicializado")
     executar_sql(conn, SQL / "03_gold" / "ddl_modelo_dimensional.sql", "DDL Gold + KPI views")
+    projeto_sql = ROOT / "projetos" / "01-sql-puro" / "sql"
+    executar_sql(conn, projeto_sql / "01_populate_dims.sql", "carga dimensoes Gold")
+    executar_sql(conn, projeto_sql / "02_populate_fatos.sql", "carga fatos Gold")
+    executar_sql(conn, projeto_sql / "03_indices.sql", "indices e estatisticas Gold")
 
 
 def etapa_validacao():

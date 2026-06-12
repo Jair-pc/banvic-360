@@ -1,9 +1,9 @@
-version: "3.9"
+name: banvic-base
 
 services:
   postgres:
     image: postgres:15
-    container_name: banvic_postgres
+    container_name: banvic-base-postgres
     environment:
       POSTGRES_DB: ${PG_DB:-banvic}
       POSTGRES_USER: ${PG_USER:-banvic_user}
@@ -23,7 +23,7 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4
-    container_name: banvic_pgadmin
+    container_name: banvic-base-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@banvic.com
       PGADMIN_DEFAULT_PASSWORD: admin
@@ -38,6 +38,8 @@ services:
 
 volumes:
   pgdata:
+    name: etleelt_pgdata
+    external: true
 
 networks:
   banvic_net:

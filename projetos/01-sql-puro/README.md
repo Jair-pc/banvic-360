@@ -98,7 +98,7 @@ No Windows, o psql pode não estar no PATH. Use o pgAdmin:
 
 1. Abra `http://localhost:5050` no navegador
 2. Login: `admin@banvic.local` / Senha: `admin`
-3. Conecte no servidor `banvic_postgres` (senha: `banvic_pass`)
+3. Conecte no servidor `banvic-base-postgres` (senha: `banvic_pass`)
 4. Abra o Query Tool e cole o conteúdo de cada arquivo SQL
 
 ---
@@ -113,7 +113,7 @@ python scripts/entrypoint.py
 
 **"connection refused" (não conecta)**
 ```bash
-docker ps   # veja se banvic_postgres está na lista
+docker ps   # veja se banvic-base-postgres está na lista
 docker compose up -d   # sobe se não estiver
 ```
 
@@ -121,7 +121,7 @@ docker compose up -d   # sobe se não estiver
 ```bash
 # Verifique se o PostgreSQL está instalado, ou use o pgAdmin (localhost:5050)
 # Ou execute dentro do container:
-docker exec -i banvic_postgres psql -U banvic_user -d banvic < projetos/01-sql-puro/sql/01_populate_dims.sql
+docker exec -i banvic-base-postgres psql -U banvic_user -d banvic < projetos/01-sql-puro/sql/01_populate_dims.sql
 ```
 
 ---

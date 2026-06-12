@@ -47,6 +47,11 @@ CREATE TABLE IF NOT EXISTS gold.dim_tempo (
     _carga_ts           TIMESTAMP       DEFAULT CURRENT_TIMESTAMP
 );
 
+-- O dbt pode materializar esta dimensao antes do projeto SQL, sem constraints.
+-- O indice mantem o ON CONFLICT idempotente nos dois cenarios.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_dim_tempo_data
+    ON gold.dim_tempo (data);
+
 -- Popular dim_tempo 2020-01-01 até 2026-12-31
 INSERT INTO gold.dim_tempo (
     data, ano, semestre, trimestre, mes, mes_nome, mes_abrev,
@@ -262,6 +267,9 @@ CREATE TABLE IF NOT EXISTS gold.dim_canal (
     subtipo         VARCHAR(50),    -- App, Internet Banking, Agência, Caixa Eletrônico
     eh_digital      BOOLEAN         NOT NULL DEFAULT TRUE
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_dim_canal_nome_canal
+    ON gold.dim_canal (nome_canal);
 
 INSERT INTO gold.dim_canal (nome_canal, tipo_canal, subtipo, eh_digital) VALUES
     ('Pix',               'Digital', 'App/IB', TRUE),

@@ -115,7 +115,7 @@ Se chegou em um número diferente: tem um bug para encontrar.
 
 **"O banco não conecta"**
 ```bash
-docker ps   # verifica se o container banvic_postgres está rodando
+docker ps   # verifica se o container banvic-base-postgres está rodando
 docker compose up -d   # sobe se não estiver
 ```
 

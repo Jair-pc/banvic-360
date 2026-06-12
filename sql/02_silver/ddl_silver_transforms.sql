@@ -18,14 +18,14 @@ SELECT
     REGEXP_REPLACE(cpfcnpj, '[^0-9]', '', 'g') AS cpf_digits,
     cpfcnpj                                 AS cpf_formatado,
     data_nascimento::DATE                   AS data_nascimento,
-    EXTRACT(YEAR FROM AGE(data_nascimento::DATE))::SMALLINT AS idade,
+    EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE))::SMALLINT AS idade,
     CASE
-        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 18 AND 24 THEN '18-24'
-        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 25 AND 34 THEN '25-34'
-        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 35 AND 44 THEN '35-44'
-        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 45 AND 54 THEN '45-54'
-        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 55 AND 64 THEN '55-64'
-        WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) >= 65 THEN '65+'
+        WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 18 AND 24 THEN '18-24'
+        WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 25 AND 34 THEN '25-34'
+        WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 35 AND 44 THEN '35-44'
+        WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 45 AND 54 THEN '45-54'
+        WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 55 AND 64 THEN '55-64'
+        WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) >= 65 THEN '65+'
         ELSE 'Menor'
     END                                     AS faixa_etaria,
     TRIM(endereco)                          AS endereco,

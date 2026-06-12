@@ -1,0 +1,56 @@
+# Ambiente auto-contido do BanVic 360
+# Porta 5433 para nao conflitar com o postgres raiz (5432)
+# pgAdmin pre-configurado em http://localhost:5051
+
+name: banvic-p04-docker
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: banvic-p04-postgres
+    environment:
+      POSTGRES_DB: banvic
+      POSTGRES_USER: banvic_user
+      POSTGRES_PASSWORD: banvic_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata04:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+      - ../../sql:/sql:ro
+      - ../../projetos/01-sql-puro/sql:/proj01sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banvic_user -d banvic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - banvic04_net
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: banvic-p04-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@banvic.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5051:80"
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - banvic04_net
+
+volumes:
+  pgdata04:
+    name: 04-docker_pgdata04
+    external: true
+
+networks:
+  banvic04_net:
+    name: banvic04_net
+    driver: bridge
