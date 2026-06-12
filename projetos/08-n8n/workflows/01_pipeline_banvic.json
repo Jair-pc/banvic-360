@@ -12,7 +12,10 @@
       "name": "Nota: Introducao",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [60, 60]
+      "position": [
+        60,
+        60
+      ]
     },
     {
       "parameters": {},
@@ -20,7 +23,10 @@
       "name": "Executar Manualmente",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [220, 340]
+      "position": [
+        220,
+        340
+      ]
     },
     {
       "parameters": {
@@ -37,7 +43,10 @@
       "name": "Agendamento Diario 02h",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [220, 540]
+      "position": [
+        220,
+        540
+      ]
     },
     {
       "parameters": {
@@ -48,7 +57,10 @@
       "name": "Trigger Unificado",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [460, 440]
+      "position": [
+        460,
+        440
+      ]
     },
     {
       "parameters": {
@@ -61,17 +73,23 @@
       "name": "Nota: Bronze",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [620, 280]
+      "position": [
+        620,
+        280
+      ]
     },
     {
       "parameters": {
-        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -t -c \"SELECT COUNT(*) FROM bronze.clientes WHERE cod_cliente IS NOT NULL\" | tr -d ' '"
+        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -v ON_ERROR_STOP=1 -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -t -c \"SELECT COUNT(*) FROM bronze.clientes WHERE cod_cliente IS NOT NULL\" | tr -d ' '"
       },
       "id": "bronze-check",
       "name": "Bronze: Contar Clientes",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [680, 460]
+      "position": [
+        680,
+        460
+      ]
     },
     {
       "parameters": {
@@ -84,17 +102,23 @@
       "name": "Nota: Silver",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [900, 280]
+      "position": [
+        900,
+        280
+      ]
     },
     {
       "parameters": {
-        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/sql/02_silver/ddl_silver_transforms.sql 2>&1 | tail -5"
+        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -v ON_ERROR_STOP=1 -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/sql/01_bronze/ddl_bronze.sql 2>&1 | tail -3 && echo \"DDL BRONZE OK\" && PGPASSWORD=$BANVIC_PG_PASS psql -v ON_ERROR_STOP=1 -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/sql/02_silver/ddl_silver_transforms.sql 2>&1 | tail -3 && echo \"SILVER OK\" && PGPASSWORD=$BANVIC_PG_PASS psql -v ON_ERROR_STOP=1 -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/sql/03_gold/ddl_modelo_dimensional.sql 2>&1 | tail -3 && echo \"DDL GOLD OK\""
       },
       "id": "silver-transforms",
       "name": "Silver: Transformacoes DQ",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [960, 460]
+      "position": [
+        960,
+        460
+      ]
     },
     {
       "parameters": {
@@ -107,27 +131,36 @@
       "name": "Nota: Gold",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1180, 280]
+      "position": [
+        1180,
+        280
+      ]
     },
     {
       "parameters": {
-        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/projetos/1_sql_puro/sql/01_populate_dims.sql 2>&1 | tail -3 && echo 'DIMS OK'"
+        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -v ON_ERROR_STOP=1 -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/projetos/01-sql-puro/sql/01_populate_dims.sql 2>&1 | tail -3 && echo \"DIMS OK\""
       },
       "id": "gold-dims",
       "name": "Gold: Popular Dimensoes",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1240, 420]
+      "position": [
+        1240,
+        420
+      ]
     },
     {
       "parameters": {
-        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/projetos/1_sql_puro/sql/02_populate_fatos.sql 2>&1 | tail -3 && echo 'FATOS OK'"
+        "command": "PGPASSWORD=$BANVIC_PG_PASS psql -v ON_ERROR_STOP=1 -h $BANVIC_PG_HOST -U $BANVIC_PG_USER -d $BANVIC_PG_DB -f /data/banvic/projetos/01-sql-puro/sql/02_populate_fatos.sql 2>&1 | tail -3 && echo 'FATOS OK'"
       },
       "id": "gold-fatos",
       "name": "Gold: Popular Fatos",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1240, 600]
+      "position": [
+        1240,
+        600
+      ]
     },
     {
       "parameters": {
@@ -140,7 +173,10 @@
       "name": "Nota: Validacao KPI",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1460, 280]
+      "position": [
+        1460,
+        280
+      ]
     },
     {
       "parameters": {
@@ -152,7 +188,10 @@
       "name": "KPI 1: Saldo por Agencia",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [1520, 460],
+      "position": [
+        1520,
+        460
+      ],
       "credentials": {
         "postgres": {
           "id": "banvic-pg-cred",
@@ -169,7 +208,10 @@
       "name": "Validar KPI1 vs Gabarito",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1740, 460]
+      "position": [
+        1740,
+        460
+      ]
     },
     {
       "parameters": {
@@ -198,7 +240,10 @@
       "name": "KPI1 Aprovado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1960, 460]
+      "position": [
+        1960,
+        460
+      ]
     },
     {
       "parameters": {
@@ -236,7 +281,10 @@
       "name": "Resultado: Aprovado",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [2180, 340]
+      "position": [
+        2180,
+        340
+      ]
     },
     {
       "parameters": {
@@ -274,41 +322,128 @@
       "name": "Resultado: Falhou",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [2180, 600]
+      "position": [
+        2180,
+        600
+      ]
     }
   ],
   "connections": {
     "Executar Manualmente": {
-      "main": [[{"node": "Trigger Unificado", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Trigger Unificado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Agendamento Diario 02h": {
-      "main": [[{"node": "Trigger Unificado", "type": "main", "index": 1}]]
+      "main": [
+        [
+          {
+            "node": "Trigger Unificado",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
     },
     "Trigger Unificado": {
-      "main": [[{"node": "Bronze: Contar Clientes", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Bronze: Contar Clientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Bronze: Contar Clientes": {
-      "main": [[{"node": "Silver: Transformacoes DQ", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Silver: Transformacoes DQ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Silver: Transformacoes DQ": {
-      "main": [[{"node": "Gold: Popular Dimensoes", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Gold: Popular Dimensoes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gold: Popular Dimensoes": {
-      "main": [[{"node": "Gold: Popular Fatos", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Gold: Popular Fatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gold: Popular Fatos": {
-      "main": [[{"node": "KPI 1: Saldo por Agencia", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "KPI 1: Saldo por Agencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "KPI 1: Saldo por Agencia": {
-      "main": [[{"node": "Validar KPI1 vs Gabarito", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Validar KPI1 vs Gabarito",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validar KPI1 vs Gabarito": {
-      "main": [[{"node": "KPI1 Aprovado?", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "KPI1 Aprovado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "KPI1 Aprovado?": {
       "main": [
-        [{"node": "Resultado: Aprovado", "type": "main", "index": 0}],
-        [{"node": "Resultado: Falhou",   "type": "main", "index": 0}]
+        [
+          {
+            "node": "Resultado: Aprovado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resultado: Falhou",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
@@ -320,5 +455,10 @@
     "templateCredsSetupCompleted": false
   },
   "id": "banvic-pipeline-001",
-  "tags": [{"id": "tag-banvic", "name": "banvic"}]
+  "tags": [
+    {
+      "id": "tag-banvic",
+      "name": "banvic"
+    }
+  ]
 }

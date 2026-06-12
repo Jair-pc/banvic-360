@@ -1,13 +1,13 @@
-version: "3.8"
-
 # Projeto 8 — BanVic 360 com n8n
 # Porta 5433 para nao conflitar com o PostgreSQL do docker-compose.yml raiz (5432)
+
+name: banvic-p08-n8n
 
 services:
 
   postgres:
     image: postgres:15-alpine
-    container_name: banvic_postgres_n8n
+    container_name: banvic-p08-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${PG_USER:-banvic_user}
@@ -15,7 +15,8 @@ services:
       POSTGRES_DB: banvic
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ../../sql:/docker-entrypoint-initdb.d/sql:ro
+      # Cria schemas/extensoes automaticamente no primeiro start do container
+      - ../../sql/00_setup/00_schemas_extensoes.sql:/docker-entrypoint-initdb.d/00_schemas.sql:ro
     ports:
       - "5433:5432"
     healthcheck:
@@ -30,7 +31,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: banvic_n8n
+    container_name: banvic-p08-n8n
     restart: unless-stopped
     ports:
       - "5678:5678"

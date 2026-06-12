@@ -59,7 +59,7 @@ echo     User: banvic_user  Pass: banvic_pass  DB: banvic
 echo     Nome: BanVic PostgreSQL
 echo.
 echo  4. Carregue os dados Bronze (se ainda nao fez):
-echo     docker exec banvic_n8n python3 /data/banvic/scripts/carga_bronze.py
+echo     docker exec banvic-p08-n8n python3 /data/banvic/scripts/carga_bronze.py
 echo.
 echo  5. Execute o workflow "BanVic 360 - Pipeline ETL Completo"
 echo.

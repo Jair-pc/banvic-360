@@ -117,7 +117,7 @@ Clique em **Test** para verificar se conectou. Deve aparecer "Connection success
 ### 5. Carregar os dados Bronze (se necessário)
 
 ```bash
-docker exec banvic_n8n python3 /data/banvic/scripts/carga_bronze.py
+docker exec banvic-p08-n8n python3 /data/banvic/scripts/carga_bronze.py
 ```
 
 ### 6. Executar o pipeline
@@ -171,8 +171,8 @@ Isso mostra o papel correto do n8n: ele é um **orquestrador**, não um reescrit
 
 **n8n não abre em localhost:5678**
 ```bash
-docker ps   # verifique se banvic_n8n está na lista
-docker logs banvic_n8n --tail 30   # veja o log de inicialização
+docker ps   # verifique se banvic-p08-n8n está na lista
+docker logs banvic-p08-n8n --tail 30   # veja o log de inicialização
 ```
 
 **"Credential not found" ao executar o workflow**
@@ -191,7 +191,7 @@ docker ps | grep postgres
 **"Table does not exist" no bloco Silver**
 ```bash
 # Bronze não foi carregado
-docker exec banvic_n8n python3 /data/banvic/scripts/carga_bronze.py
+docker exec banvic-p08-n8n python3 /data/banvic/scripts/carga_bronze.py
 ```
 
 ---
