@@ -4,16 +4,16 @@ echo  BanVic 360 - Projeto 5: Airflow
 echo =====================================================
 
 echo.
-echo [PRE] Verificando banvic_postgres...
-docker ps --filter "name=banvic_postgres" --filter "status=running" --format "{{.Names}}" | findstr banvic_postgres >nul
+echo [PRE] Verificando banvic-base-postgres...
+docker ps --filter "name=banvic-base-postgres" --filter "status=running" --format "{{.Names}}" | findstr banvic-base-postgres >nul
 if errorlevel 1 (
-    echo [ERRO] banvic_postgres nao esta rodando.
+    echo [ERRO] banvic-base-postgres nao esta rodando.
     echo        Execute na raiz do projeto:
     echo          docker compose up -d
     echo          python scripts/carga_bronze.py
     exit /b 1
 )
-echo [OK] banvic_postgres detectado.
+echo [OK] banvic-base-postgres detectado.
 
 echo.
 echo [1/2] Inicializando banco de metadados do Airflow (primeira vez)...
@@ -34,5 +34,5 @@ echo      Para acionar a DAG manualmente:
 echo        Abra o Airflow UI, ative a DAG "banvic_pipeline" e clique em Trigger.
 echo.
 echo      Para acompanhar os logs:
-echo        docker logs -f banvic_airflow_scheduler
+echo        docker logs -f banvic-p05-scheduler
 echo =====================================================

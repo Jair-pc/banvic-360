@@ -6,16 +6,16 @@ echo  BanVic 360 - Projeto 3: Apache Hop
 echo =====================================================
 
 echo.
-echo [PRE] Verificando se banvic_postgres esta rodando...
-docker ps --filter "name=banvic_postgres" --filter "status=running" --format "{{.Names}}" | findstr banvic_postgres >nul 2>&1
+echo [PRE] Verificando se banvic-base-postgres esta rodando...
+docker ps --filter "name=banvic-base-postgres" --filter "status=running" --format "{{.Names}}" | findstr banvic-base-postgres >nul 2>&1
 if errorlevel 1 (
-    echo [ERRO] banvic_postgres nao esta rodando.
+    echo [ERRO] banvic-base-postgres nao esta rodando.
     echo        Execute primeiro na raiz do projeto:
     echo          docker compose up -d
     echo          python scripts/carga_bronze.py
     exit /b 1
 )
-echo [OK] banvic_postgres detectado.
+echo [OK] banvic-base-postgres detectado.
 
 echo.
 echo [1/1] Executando workflow Apache Hop...

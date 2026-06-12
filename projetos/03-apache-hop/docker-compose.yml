@@ -1,22 +1,22 @@
-version: "3.9"
-
 # Projeto 3 - Apache Hop
 # Pre-requisito: docker compose up -d (raiz do projeto) + python scripts/carga_bronze.py
 # Este compose adiciona o container Hop conectado ao postgres ja em execucao (banvic_net).
 
+name: banvic-p03-hop
+
 services:
   hop:
     image: apache/hop:2.10.0
-    container_name: banvic_hop
+    container_name: banvic-p03-hop
     environment:
       # Projeto Hop
       HOP_PROJECT_FOLDER: /files/project
       HOP_PROJECT_NAME: banvic
-      HOP_WORKFLOW: workflows/00_banvic_pipeline.hwf
+      HOP_FILE_PATH: /files/project/workflows/00_banvic_pipeline.hwf
       HOP_RUN_CONFIG: local
       HOP_LOG_LEVEL: Basic
-      # Conexao PostgreSQL (banvic_postgres rodando na banvic_net)
-      HOP_PG_HOST: banvic_postgres
+      # Conexao PostgreSQL (banvic-base-postgres rodando na banvic_net)
+      HOP_PG_HOST: banvic-base-postgres
       HOP_PG_PORT: "5432"
       HOP_PG_DATABASE: banvic
       HOP_PG_USER: banvic_user

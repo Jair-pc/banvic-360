@@ -72,17 +72,17 @@ cd projetos/03-apache-hop
 chmod +x run.sh && ./run.sh
 ```
 
-**O que você vai ver na tela:**
+**O que você vai ver na tela (tempo real: ~18 segundos):**
 ```
-Starting Apache Hop container...
-Running workflow: 00_banvic_pipeline.hwf
-
-2024/01/15 10:23:01 - Limpando tabelas Silver e Gold...    OK
-2024/01/15 10:23:03 - Pipeline Silver (01_silver.hpl)...   OK  (12.4s)
-2024/01/15 10:23:15 - Pipeline Gold Dims (02_gold_dims.hpl)... OK  (3.1s)
-2024/01/15 10:23:18 - Pipeline Gold Fatos (03_gold_fatos.hpl)... OK  (8.2s)
-
-Workflow concluido com sucesso!
+2026/06/12 13:59:37 - 00_banvic_pipeline - Starting action [Preparar ambiente]
+2026/06/12 13:59:37 - 00_banvic_pipeline - Starting action [01 Silver]
+2026/06/12 13:59:39 - 01_silver - Pipeline duration : 1.659 seconds
+2026/06/12 13:59:39 - 00_banvic_pipeline - Starting action [02 Gold Dims]
+2026/06/12 13:59:49 - 02_gold_dims - Pipeline duration : 10.683 seconds
+2026/06/12 13:59:50 - 00_banvic_pipeline - Starting action [03 Gold Fatos]
+2026/06/12 13:59:54 - 03_gold_fatos - Pipeline duration : 4.274 seconds
+2026/06/12 13:59:54 - 00_banvic_pipeline - Starting action [Sucesso]
+2026/06/12 13:59:54 - 00_banvic_pipeline - Workflow duration : 18.195 seconds
 ```
 
 ### Ver o pipeline visualmente (opcional)
@@ -134,7 +134,7 @@ Início
 
 ## Se algo não funcionar
 
-**"Cannot connect to banvic_postgres"**
+**"Cannot connect to banvic-base-postgres"**
 ```bash
 # O banco precisa estar na rede banvic_net
 docker network ls   # verifique se banvic_net existe

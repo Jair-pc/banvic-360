@@ -34,28 +34,28 @@ SILVER_SQL: dict[str, str] = {
         DROP TABLE IF EXISTS silver.clientes_clean CASCADE;
         CREATE TABLE silver.clientes_clean AS
         SELECT
-            cod_cliente::INTEGER                                    AS cod_cliente,
-            TRIM(primeiro_nome)                                     AS primeiro_nome,
-            TRIM(ultimo_nome)                                       AS ultimo_nome,
-            LOWER(TRIM(email))                                      AS email,
-            UPPER(TRIM(tipo_cliente))                               AS tipo_pessoa,
-            data_inclusao::DATE                                     AS data_inclusao,
-            REGEXP_REPLACE(cpfcnpj, '[^0-9]', '', 'g')             AS cpf_digits,
-            cpfcnpj                                                 AS cpf_formatado,
-            data_nascimento::DATE                                   AS data_nascimento,
-            EXTRACT(YEAR FROM AGE(data_nascimento::DATE))::SMALLINT AS idade,
+            cod_cliente::INTEGER                                                        AS cod_cliente,
+            TRIM(primeiro_nome)                                                         AS primeiro_nome,
+            TRIM(ultimo_nome)                                                           AS ultimo_nome,
+            LOWER(TRIM(email))                                                          AS email,
+            UPPER(TRIM(tipo_cliente))                                                   AS tipo_pessoa,
+            data_inclusao::DATE                                                         AS data_inclusao,
+            REGEXP_REPLACE(cpfcnpj, '[^0-9]', '', 'g')                                 AS cpf_digits,
+            cpfcnpj                                                                     AS cpf_formatado,
+            data_nascimento::DATE                                                       AS data_nascimento,
+            EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE))::SMALLINT AS idade,
             CASE
-                WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 18 AND 24 THEN '18-24'
-                WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 25 AND 34 THEN '25-34'
-                WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 35 AND 44 THEN '35-44'
-                WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 45 AND 54 THEN '45-54'
-                WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) BETWEEN 55 AND 64 THEN '55-64'
-                WHEN EXTRACT(YEAR FROM AGE(data_nascimento::DATE)) >= 65              THEN '65+'
+                WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 18 AND 24 THEN '18-24'
+                WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 25 AND 34 THEN '25-34'
+                WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 35 AND 44 THEN '35-44'
+                WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 45 AND 54 THEN '45-54'
+                WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) BETWEEN 55 AND 64 THEN '55-64'
+                WHEN EXTRACT(YEAR FROM AGE('2026-06-10'::DATE, data_nascimento::DATE)) >= 65              THEN '65+'
                 ELSE 'Menor'
-            END                                                     AS faixa_etaria,
-            TRIM(endereco)                                          AS endereco,
-            REGEXP_REPLACE(cep, '[^0-9]', '', 'g')                 AS cep_digits,
-            NOW()                                                   AS _silver_ts
+            END                                                                         AS faixa_etaria,
+            TRIM(endereco)                                                              AS endereco,
+            REGEXP_REPLACE(cep, '[^0-9]', '', 'g')                                     AS cep_digits,
+            NOW()                                                                       AS _silver_ts
         FROM bronze.clientes
         WHERE cod_cliente IS NOT NULL AND cpfcnpj IS NOT NULL;
 
@@ -269,18 +269,52 @@ SILVER_SQL: dict[str, str] = {
 
         DROP TABLE IF EXISTS silver.selic_clean CASCADE;
         CREATE TABLE silver.selic_clean AS
-        SELECT data::DATE, taxa_selic::NUMERIC(8,4) AS taxa_selic,
-               taxa_cdi::NUMERIC(8,4) AS taxa_cdi, NOW() AS _silver_ts
-        FROM bronze.selic WHERE data ~ '^\\d{4}-\\d{2}-\\d{2}$'
-          AND taxa_selic ~ '^[0-9]+\\.?[0-9]*$';
+        SELECT data::DATE,
+               taxa_selic::NUMERIC(10,6)           AS taxa_selic,
+               taxa_selic::NUMERIC * 252 * 100     AS taxa_selic_aa,
+               'REAL'                              AS tipo,
+               NOW()                               AS _silver_ts
+        FROM bronze.selic
+        UNION ALL
+        SELECT data::DATE,
+               taxa_selic::NUMERIC(10,6),
+               taxa_selic::NUMERIC * 252 * 100,
+               tipo, NOW()
+        FROM bronze.selic_projetada WHERE tipo = 'PROJECAO';
 
         DROP TABLE IF EXISTS silver.municipios_clean CASCADE;
         CREATE TABLE silver.municipios_clean AS
-        SELECT codigo_ibge, TRIM(nome_municipio) AS nome_municipio,
-               UPPER(uf) AS uf, regiao,
-               populacao::INTEGER, pib_per_capita::NUMERIC(14,2),
-               NOW() AS _silver_ts
-        FROM bronze.municipios_ibge WHERE codigo_ibge IS NOT NULL;
+        SELECT m.codigo_ibge::INTEGER AS codigo_ibge,
+               m.municipio,
+               UPPER(m.uf) AS uf,
+               CASE UPPER(m.uf)
+                   WHEN 'SP' THEN 'Sudeste' WHEN 'RJ' THEN 'Sudeste'
+                   WHEN 'MG' THEN 'Sudeste' WHEN 'ES' THEN 'Sudeste'
+                   WHEN 'RS' THEN 'Sul'     WHEN 'SC' THEN 'Sul'   WHEN 'PR' THEN 'Sul'
+                   WHEN 'BA' THEN 'Nordeste' WHEN 'PE' THEN 'Nordeste'
+                   WHEN 'CE' THEN 'Nordeste' WHEN 'MA' THEN 'Nordeste'
+                   WHEN 'PB' THEN 'Nordeste' WHEN 'RN' THEN 'Nordeste'
+                   WHEN 'AL' THEN 'Nordeste' WHEN 'SE' THEN 'Nordeste'
+                   WHEN 'PI' THEN 'Nordeste'
+                   WHEN 'GO' THEN 'Centro-Oeste' WHEN 'MT' THEN 'Centro-Oeste'
+                   WHEN 'MS' THEN 'Centro-Oeste' WHEN 'DF' THEN 'Centro-Oeste'
+                   WHEN 'AM' THEN 'Norte' WHEN 'PA' THEN 'Norte'
+                   WHEN 'AC' THEN 'Norte' WHEN 'RO' THEN 'Norte'
+                   WHEN 'RR' THEN 'Norte' WHEN 'AP' THEN 'Norte' WHEN 'TO' THEN 'Norte'
+                   ELSE 'Sudeste'
+               END AS regiao,
+               p.populacao::INTEGER                AS populacao,
+               p.ano::SMALLINT                     AS ano_populacao,
+               pib.pib_total::BIGINT               AS pib_total,
+               pib.pib_per_capita::NUMERIC         AS pib_per_capita,
+               pib.ano::SMALLINT                   AS ano_pib,
+               NOW()                               AS _silver_ts
+        FROM bronze.municipios m
+        LEFT JOIN bronze.populacao p
+               ON p.codigo_ibge = m.codigo_ibge AND p.ano = '2022'
+        LEFT JOIN bronze.pib_municipal pib
+               ON pib.codigo_ibge = m.codigo_ibge AND pib.ano = '2021'
+        WHERE m.codigo_ibge IS NOT NULL;
     """,
 
     "indices": """
@@ -313,6 +347,8 @@ def _check_bronze(**_) -> bool:
 
 
 def _preparar_ambiente(**_):
+    # dim_tempo NAO e truncada — e uma dimensao de referencia pre-populada pelo DDL
+    # e apenas atualizada (UPDATE) com indicadores economicos, nao recriada a cada run.
     sql = """
         DROP TABLE IF EXISTS silver.clientes_clean              CASCADE;
         DROP TABLE IF EXISTS silver.clientes_sinteticos_clean   CASCADE;
@@ -327,7 +363,6 @@ def _preparar_ambiente(**_):
         TRUNCATE gold.fato_transacoes          CASCADE;
         TRUNCATE gold.fato_contas              CASCADE;
         TRUNCATE gold.fato_propostas_credito   CASCADE;
-        TRUNCATE gold.dim_tempo                CASCADE;
         TRUNCATE gold.dim_cliente              CASCADE;
         TRUNCATE gold.dim_agencia              CASCADE;
         TRUNCATE gold.dim_colaborador          CASCADE;
@@ -335,7 +370,7 @@ def _preparar_ambiente(**_):
         TRUNCATE gold.dim_canal                CASCADE;
     """
     get_hook().run(sql)
-    log.info("Silver dropped + Gold truncated")
+    log.info("Silver dropped + Gold dims/fatos truncated (dim_tempo preservada)")
 
 
 def _silver_task(entity: str, **_):
@@ -356,45 +391,78 @@ def _gold_fatos(**_):
 
 
 def _validar_kpis(**context):
-    hook   = get_hook()
-    gabarito = json.loads(GABARITO_PATH.read_text())
-    erros  = []
+    hook = get_hook()
+    gabarito_raw = json.loads(GABARITO_PATH.read_text())
+    gab = {entry["kpi"]: entry["dados"] for entry in gabarito_raw}
+    erros = []
 
-    # KPI 1: saldo total consolidado
-    total_pg = float(
-        hook.get_first("SELECT SUM(saldo_total) FROM gold.vw_kpi1_saldo_por_agencia")[0]
+    def soma(dados, campo):
+        return sum(float(r.get(campo, 0) or 0) for r in dados if r.get(campo) is not None)
+
+    # KPI 1: saldo total por agencia
+    pg1 = float(hook.get_first("SELECT SUM(saldo_total) FROM gold.vw_kpi1_saldo_por_agencia")[0])
+    gab1 = soma(gab[1], "saldo_total")
+    if abs(pg1 - gab1) > 0.02:
+        erros.append(f"KPI1 saldo_total: {pg1:.2f} != {gab1:.2f}")
+
+    # KPI 2_3: volume de transacoes por mes e tipo
+    pg23 = float(hook.get_first("SELECT SUM(volume_total) FROM gold.vw_kpi2_3_transacoes_por_mes")[0])
+    gab23 = soma(gab["2_3"], "volume")
+    if abs(pg23 - gab23) > 0.02:
+        erros.append(f"KPI2_3 volume_total: {pg23:.2f} != {gab23:.2f}")
+
+    # KPI 4: conversao de propostas — compara por contagens ordenadas (evita encoding)
+    pg4_counts = sorted(
+        int(r[0]) for r in hook.get_records(
+            "SELECT qtd_propostas FROM gold.vw_kpi4_conversao_propostas"
+        )
     )
-    total_gab = sum(float(r["saldo_total"]) for r in gabarito[0]["dados"])
-    if abs(total_pg - total_gab) > 0.02:
-        erros.append(f"KPI1 saldo total: {total_pg:.2f} != {total_gab:.2f}")
+    gab4_counts = sorted(int(r["qtd_propostas"]) for r in gab[4])
+    if pg4_counts != gab4_counts:
+        erros.append(f"KPI4 counts: {pg4_counts} != {gab4_counts}")
 
-    # KPI 4: contagem de propostas por status
-    rows_pg = {
+    # KPI 5: ranking de agencias (quantidade + lider)
+    rows_pg5 = hook.get_records(
+        "SELECT cod_agencia FROM gold.vw_kpi5_ranking_agencias ORDER BY ranking"
+    )
+    gab5 = gab[5]
+    if len(rows_pg5) != len(gab5):
+        erros.append(f"KPI5 qtd agencias: {len(rows_pg5)} != {len(gab5)}")
+    elif str(rows_pg5[0][0]) != str(gab5[0]["cod_agencia"]):
+        erros.append(f"KPI5 top1: {rows_pg5[0][0]} != {gab5[0]['cod_agencia']}")
+
+    # KPI 6: carteira por colaborador (soma do saldo gerido total)
+    pg6 = float(hook.get_first("SELECT SUM(saldo_gerido) FROM gold.vw_kpi6_carteira_colaborador")[0])
+    gab6 = soma(gab[6], "saldo_gerido")
+    if abs(pg6 - gab6) > max(gab6 * 0.01, 0.02):
+        erros.append(f"KPI6 saldo_gerido: {pg6:.2f} != {gab6:.2f}")
+
+    # KPI 7: segmentacao por faixa etaria
+    rows_pg7 = {
         r[0]: int(r[1])
         for r in hook.get_records(
-            "SELECT status_proposta, qtd_propostas FROM gold.vw_kpi4_conversao_propostas"
+            "SELECT faixa_etaria, qtd_clientes FROM gold.vw_kpi7_segmentacao_clientes"
         )
     }
-    rows_gab = {r["status_proposta"]: int(r["qtd_propostas"]) for r in gabarito[3]["dados"]}
-    for status, qtd_gab in rows_gab.items():
-        qtd_pg = rows_pg.get(status, 0)
+    for row_gab in gab[7]:
+        fx = row_gab["faixa_etaria"]
+        qtd_pg = rows_pg7.get(fx, 0)
+        qtd_gab = int(row_gab["qtd_clientes"])
         if qtd_pg != qtd_gab:
-            erros.append(f"KPI4 {status}: {qtd_pg} != {qtd_gab}")
+            erros.append(f"KPI7 faixa={fx}: {qtd_pg} != {qtd_gab}")
 
-    # KPI 5: agencia #1 no ranking
-    top_ag = hook.get_first(
-        "SELECT nome_agencia FROM gold.vw_kpi5_ranking_agencias ORDER BY ranking LIMIT 1"
-    )[0]
-    top_gab = gabarito[4]["dados"][0]["nome_agencia"]
-    if top_ag != top_gab:
-        erros.append(f"KPI5 lider: '{top_ag}' != '{top_gab}'")
+    # KPI 8: correcao IPCA (soma do volume nominal)
+    pg8 = float(hook.get_first("SELECT SUM(volume_nominal) FROM gold.vw_kpi8_correcao_ipca")[0])
+    gab8 = soma(gab[8], "volume_nominal")
+    if abs(pg8 - gab8) > 0.02:
+        erros.append(f"KPI8 volume_nominal: {pg8:.2f} != {gab8:.2f}")
 
     if erros:
         raise ValueError("Validacao falhou:\n" + "\n".join(erros))
 
-    resultado = {"status": "APROVADO", "kpis_verificados": 3, "descricao": "KPI1, KPI4, KPI5 OK"}
+    resultado = {"status": "APROVADO", "kpis_verificados": 8}
     context["ti"].xcom_push(key="validacao", value=resultado)
-    log.info("Validacao APROVADA: %s", resultado)
+    log.info("Validacao APROVADA: todos os 8 KPIs OK")
 
 
 # ── DAG ───────────────────────────────────────────────────────────────────────

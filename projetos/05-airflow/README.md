@@ -122,7 +122,7 @@ Na interface do Airflow: clique em `banvic_pipeline` → clique em `validar_kpis
 
 Ou no terminal:
 ```bash
-docker logs banvic_airflow_scheduler | grep -i "aprovad\|falhou"
+docker logs banvic-p05-scheduler | grep -i "aprovad\|falhou"
 ```
 
 ### Verificar as respostas no banco
@@ -148,7 +148,7 @@ docker compose down
 **"DAG banvic_pipeline não aparece na lista"**
 ```bash
 # Veja se o arquivo foi carregado corretamente
-docker logs banvic_airflow_scheduler | grep "banvic"
+docker logs banvic-p05-scheduler | grep "banvic"
 # Aguarde 30 segundos — o Airflow verifica novos DAGs periodicamente
 ```
 
@@ -158,10 +158,10 @@ docker logs banvic_airflow_scheduler | grep "banvic"
 # Geralmente é problema de conexão com o banco ou Bronze não carregado
 
 # Verificar o banco:
-docker ps   # banvic_postgres deve estar "healthy"
+docker ps   # banvic-base-postgres deve estar "healthy"
 ```
 
-**"connection refused to banvic_postgres"**
+**"connection refused to banvic-base-postgres"**
 ```bash
 # O Airflow usa a rede banvic_net — o banco precisa estar rodando
 docker compose up -d   # na raiz do projeto
@@ -188,7 +188,7 @@ docker compose up -d   # na raiz do projeto
 A senha do banco não fica no código. Ela é passada como variável de ambiente no docker-compose:
 
 ```
-AIRFLOW_CONN_BANVIC_PG=postgresql://banvic_user:banvic_pass@banvic_postgres:5432/banvic
+AIRFLOW_CONN_BANVIC_PG=postgresql://banvic_user:banvic_pass@banvic-base-postgres:5432/banvic
 ```
 
 O Airflow registra isso como uma "Connection" com o nome `banvic_pg`.
