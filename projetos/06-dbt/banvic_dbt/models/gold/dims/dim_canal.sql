@@ -1,7 +1,7 @@
 {{ config(materialized='table', schema='gold') }}
 
 select
-    row_number() over (order by nome_canal)::integer    as sk_canal,
+    row_number() over (order by canal)::integer         as sk_canal,
     canal                                               as nome_canal,
     case
         when canal in ('Pix', 'TED', 'DOC')                  then 'Transferencia'

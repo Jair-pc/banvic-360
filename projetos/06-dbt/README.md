@@ -107,13 +107,13 @@ Completed successfully.
 
 ```bash
 # Transformar Bronze → Silver → Gold
-docker compose run --rm dbt run --profiles-dir /banvic_dbt
+docker compose run --rm --name banvic-p06-dbt dbt run --profiles-dir /banvic_dbt
 
 # Rodar os testes de qualidade de dados
-docker compose run --rm dbt test --profiles-dir /banvic_dbt
+docker compose run --rm --name banvic-p06-dbt dbt test --profiles-dir /banvic_dbt
 
 # Gerar a documentação
-docker compose run --rm dbt docs generate --profiles-dir /banvic_dbt
+docker compose run --rm --name banvic-p06-dbt dbt docs generate --profiles-dir /banvic_dbt
 
 # Abrir a documentação no navegador (http://localhost:8081)
 docker compose run --rm -p 8081:8080 dbt docs serve

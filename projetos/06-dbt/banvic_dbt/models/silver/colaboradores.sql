@@ -27,7 +27,7 @@ originais_nao_expandidos as (
         lower(c.email), c.cpf,
         c.data_nascimento::date,
         null::text, null::text, null::text,
-        c.cargo,
+        null::text,      -- cargo nao existe em bronze.colaboradores (apenas em expandidos)
         null::smallint, null::text, null::numeric(12,2),
         null::integer, null::date, null::date, true::boolean
     from {{ source('bronze', 'colaboradores') }} c

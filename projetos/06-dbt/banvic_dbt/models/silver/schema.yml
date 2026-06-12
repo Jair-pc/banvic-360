@@ -60,4 +60,4 @@ models:
       - name: status_proposta
         tests:
           - accepted_values:
-              values: ['Aprovada', 'Reprovada', 'Enviada', 'Em Analise', 'Cancelada']
+              values: ['Aprovada', 'Reprovada', 'Enviada', 'Em Analise', 'Em Análise', 'Em análise', 'Cancelada', 'Validação documentos']
