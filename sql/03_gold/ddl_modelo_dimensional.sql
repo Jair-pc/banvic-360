@@ -610,7 +610,7 @@ SELECT
     t.mes_nome,
     ft.nome_transacao,
     COUNT(*)                            AS qtd_transacoes,
-    SUM(ft.valor_absoluto)              AS volume_total,
+    SUM(ABS(ft.valor_transacao))        AS volume_total,
     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (PARTITION BY t.ano, t.mes), 2) AS pct_mix
 FROM gold.fato_transacoes ft
 JOIN gold.dim_tempo t       ON t.sk_tempo = ft.sk_tempo
@@ -634,7 +634,7 @@ ORDER BY qtd_propostas DESC;
 CREATE OR REPLACE VIEW gold.vw_kpi5_ranking_agencias AS
 WITH volume_ag AS (
     SELECT a.cod_agencia,
-           SUM(ft.valor_absoluto) AS volume_total
+           SUM(ABS(ft.valor_transacao)) AS volume_total
     FROM gold.fato_transacoes ft
     JOIN gold.dim_agencia a ON a.sk_agencia = ft.sk_agencia
     GROUP BY a.cod_agencia
@@ -666,7 +666,7 @@ propostas_por_col AS (
 )
 SELECT
     col.cod_colaborador,
-    col.nome_completo,
+    col.primeiro_nome || ' ' || col.ultimo_nome AS nome_completo,
     col.cargo,
     a.nome                                  AS agencia,
     COALESCE(cc.qtd_contas, 0)              AS qtd_contas_geridas,
@@ -674,7 +674,7 @@ SELECT
     COALESCE(pc.qtd_propostas, 0)           AS qtd_propostas,
     COALESCE(pc.propostas_aprovadas, 0)     AS propostas_aprovadas
 FROM gold.dim_colaborador col
-JOIN gold.dim_agencia a         ON a.sk_agencia = col.sk_agencia_principal
+LEFT JOIN gold.dim_agencia a    ON a.sk_agencia = col.sk_agencia_principal
 LEFT JOIN contas_por_col cc     ON cc.sk_colaborador = col.sk_colaborador
 LEFT JOIN propostas_por_col pc  ON pc.sk_colaborador = col.sk_colaborador
 WHERE col.eh_ativo = TRUE
