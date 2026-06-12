@@ -26,7 +26,8 @@ REGIAO_MAP = {
 
 
 def _calcular_idade(dt_serie: pd.Series) -> pd.Series:
-    hoje = pd.Timestamp.today().normalize()
+    # Data fixa = dia em que o gabarito foi gerado (determinismo entre projetos)
+    hoje = pd.Timestamp("2026-06-10").normalize()
     ainda_nao_fez_aniversario = (
         (dt_serie.dt.month > hoje.month)
         | ((dt_serie.dt.month == hoje.month) & (dt_serie.dt.day > hoje.day))

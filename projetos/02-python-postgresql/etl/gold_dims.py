@@ -132,7 +132,8 @@ def _popular_dim_agencia(engine):
     out = df[[
         "cod_agencia", "nome", "tipo_agencia", "cidade", "uf", "regiao",
         "data_abertura", "eh_ativa", "meta_comercial_mensal", "latitude", "longitude",
-    ]]
+    ]].copy()
+    out.insert(0, "sk_agencia", range(1, len(out) + 1))
     out.to_sql("dim_agencia", engine, schema="gold", if_exists="append",
                index=False, method="multi")
     print(f"  gold.dim_agencia: {len(out):,} linhas")
@@ -154,7 +155,8 @@ def _popular_dim_colaborador(engine):
         "data_nascimento", "cargo", "departamento", "nivel_hierarquico",
         "salario_base", "data_admissao", "data_demissao",
         "eh_ativo", "sk_agencia_principal", "cidade", "uf",
-    ]]
+    ]].copy()
+    out.insert(0, "sk_colaborador", range(1, len(out) + 1))
     out.to_sql("dim_colaborador", engine, schema="gold", if_exists="append",
                index=False, method="multi", chunksize=5000)
     print(f"  gold.dim_colaborador: {len(out):,} linhas")
@@ -174,7 +176,8 @@ def _popular_dim_cliente(engine):
         "cod_cliente", "primeiro_nome", "ultimo_nome", "cpf", "tipo_pessoa", "email",
         "data_nascimento", "idade", "faixa_etaria", "cep", "data_inclusao",
         "data_inicio_vigencia", "data_fim_vigencia", "eh_registro_atual",
-    ]]
+    ]].copy()
+    orig_out.insert(0, "sk_cliente", range(1, len(orig_out) + 1))
     orig_out.to_sql("dim_cliente", engine, schema="gold", if_exists="append",
                     index=False, method="multi", chunksize=5000)
 
@@ -189,7 +192,8 @@ def _popular_dim_cliente(engine):
         "cidade", "uf", "renda_mensal", "faixa_renda",
         "profissao", "escolaridade", "score_credito", "faixa_score",
         "data_inclusao", "data_inicio_vigencia", "data_fim_vigencia", "eh_registro_atual",
-    ]]
+    ]].copy()
+    sint_out.insert(0, "sk_cliente", range(len(orig_out) + 1, len(orig_out) + len(sint_out) + 1))
     sint_out.to_sql("dim_cliente", engine, schema="gold", if_exists="append",
                     index=False, method="multi", chunksize=5000)
 
@@ -224,6 +228,7 @@ def _popular_dim_canal(engine):
         "Pagamento Boleto": "Boleto",
     }
     canais["tipo_canal"] = canais["nome_canal"].map(tipo_map).fillna("Digital")
+    canais.insert(0, "sk_canal", range(1, len(canais) + 1))
     canais.to_sql("dim_canal", engine, schema="gold", if_exists="append",
                   index=False, method="multi")
     print(f"  gold.dim_canal: {len(canais):,} linhas")
