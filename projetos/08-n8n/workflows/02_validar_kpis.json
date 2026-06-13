@@ -54,7 +54,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT\n    t.ano_mes,\n    tx.nome_transacao,\n    COUNT(*)                              AS qtd_transacoes,\n    ROUND(SUM(tx.valor_transacao)::numeric, 2) AS volume_total\nFROM gold.fato_transacoes tx\nJOIN gold.dim_tempo t ON tx.sk_tempo = t.sk_tempo\nGROUP BY t.ano_mes, tx.nome_transacao\nORDER BY t.ano_mes, volume_total DESC",
+        "query": "SELECT\n    TO_CHAR(t.data, 'YYYY-MM')             AS ano_mes,\n    tx.nome_transacao,\n    COUNT(*)                               AS qtd_transacoes,\n    ROUND(SUM(tx.valor_absoluto)::numeric, 2) AS volume_total\nFROM gold.fato_transacoes tx\nJOIN gold.dim_tempo t ON tx.sk_tempo = t.sk_tempo\nGROUP BY TO_CHAR(t.data, 'YYYY-MM'), tx.nome_transacao\nORDER BY ano_mes, volume_total DESC",
         "options": {}
       },
       "id": "kpi2",
@@ -108,7 +108,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Consolida resultados de todos os KPIs e gera resumo final\nconst kpi1 = $('Validar KPI1').item.json;\n\nconst kpis = [\n  { kpi: 'KPI1', status: kpi1.status },\n  { kpi: 'KPI2', status: 'CALCULADO' },\n  { kpi: 'KPI4', status: 'CALCULADO' },\n  { kpi: 'KPI7', status: 'CALCULADO' },\n];\n\nconst linhas = kpis.map(k => {\n  const ok = k.status === 'APROVADO' || k.status === 'CALCULADO';\n  return `  [${ok ? 'OK' : '!!'}] ${k.kpi}: ${k.status}`;\n});\n\nconst resumo = [\n  '='.repeat(50),\n  '  BanVic 360 - Projeto 8 (n8n) - Resultado',\n  '='.repeat(50),\n  ...linhas,\n  '='.repeat(50),\n  `  Gabarito KPI1: R$ 26.509.620,12 | 10 agencias`,\n  `  Calculado KPI1: R$ ${kpi1.saldo_calculado}`,\n].join('\\n');\n\nconsole.log(resumo);\n\nreturn [{\n  json: {\n    resumo,\n    kpi1_status:  kpi1.status,\n    kpi1_saldo:   kpi1.saldo_calculado,\n    todos_ok:     kpi1.aprovado,\n    timestamp:    new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Consolida resultados de todos os KPIs e gera resumo final\nconst kpi1 = $('Validar KPI1').first().json;\n\nconst kpis = [\n  { kpi: 'KPI1', status: kpi1.status },\n  { kpi: 'KPI2', status: 'CALCULADO' },\n  { kpi: 'KPI4', status: 'CALCULADO' },\n  { kpi: 'KPI7', status: 'CALCULADO' },\n];\n\nconst linhas = kpis.map(k => {\n  const ok = k.status === 'APROVADO' || k.status === 'CALCULADO';\n  return `  [${ok ? 'OK' : '!!'}] ${k.kpi}: ${k.status}`;\n});\n\nconst resumo = [\n  '='.repeat(50),\n  '  BanVic 360 - Projeto 8 (n8n) - Resultado',\n  '='.repeat(50),\n  ...linhas,\n  '='.repeat(50),\n  `  Gabarito KPI1: R$ 26.509.620,12 | 10 agencias`,\n  `  Calculado KPI1: R$ ${kpi1.saldo_calculado}`,\n].join('\\n');\n\nconsole.log(resumo);\n\nreturn [{\n  json: {\n    resumo,\n    kpi1_status:  kpi1.status,\n    kpi1_saldo:   kpi1.saldo_calculado,\n    todos_ok:     kpi1.aprovado,\n    timestamp:    new Date().toISOString()\n  }\n}];"
       },
       "id": "resumo-final",
       "name": "Resumo Final",

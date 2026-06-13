@@ -12,10 +12,7 @@
       "name": "Nota: Introducao",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        60,
-        60
-      ]
+      "position": [60, 60]
     },
     {
       "parameters": {},
@@ -23,44 +20,7 @@
       "name": "Executar Manualmente",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [
-        220,
-        340
-      ]
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 2 * * *"
-            }
-          ]
-        }
-      },
-      "id": "trigger-schedule",
-      "name": "Agendamento Diario 02h",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [
-        220,
-        540
-      ]
-    },
-    {
-      "parameters": {
-        "mode": "passThrough",
-        "output": "input1"
-      },
-      "id": "merge-trigger",
-      "name": "Trigger Unificado",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        460,
-        440
-      ]
+      "position": [300, 340]
     },
     {
       "parameters": {
@@ -73,10 +33,7 @@
       "name": "Nota: Bronze",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        620,
-        280
-      ]
+      "position": [540, 220]
     },
     {
       "parameters": {
@@ -86,10 +43,7 @@
       "name": "Bronze: Contar Clientes",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [
-        680,
-        460
-      ]
+      "position": [540, 340]
     },
     {
       "parameters": {
@@ -102,10 +56,7 @@
       "name": "Nota: Silver",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        900,
-        280
-      ]
+      "position": [820, 220]
     },
     {
       "parameters": {
@@ -115,10 +66,7 @@
       "name": "Silver: Transformacoes DQ",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [
-        960,
-        460
-      ]
+      "position": [820, 340]
     },
     {
       "parameters": {
@@ -131,10 +79,7 @@
       "name": "Nota: Gold",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        1180,
-        280
-      ]
+      "position": [1100, 220]
     },
     {
       "parameters": {
@@ -144,10 +89,7 @@
       "name": "Gold: Popular Dimensoes",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [
-        1240,
-        420
-      ]
+      "position": [1100, 300]
     },
     {
       "parameters": {
@@ -157,10 +99,7 @@
       "name": "Gold: Popular Fatos",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [
-        1240,
-        600
-      ]
+      "position": [1100, 460]
     },
     {
       "parameters": {
@@ -173,10 +112,7 @@
       "name": "Nota: Validacao KPI",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [
-        1460,
-        280
-      ]
+      "position": [1380, 220]
     },
     {
       "parameters": {
@@ -188,10 +124,7 @@
       "name": "KPI 1: Saldo por Agencia",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [
-        1520,
-        460
-      ],
+      "position": [1380, 340],
       "credentials": {
         "postgres": {
           "id": "banvic-pg-cred",
@@ -208,10 +141,7 @@
       "name": "Validar KPI1 vs Gabarito",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1740,
-        460
-      ]
+      "position": [1600, 340]
     },
     {
       "parameters": {
@@ -240,10 +170,7 @@
       "name": "KPI1 Aprovado?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        1960,
-        460
-      ]
+      "position": [1820, 340]
     },
     {
       "parameters": {
@@ -281,10 +208,7 @@
       "name": "Resultado: Aprovado",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [
-        2180,
-        340
-      ]
+      "position": [2040, 220]
     },
     {
       "parameters": {
@@ -322,143 +246,40 @@
       "name": "Resultado: Falhou",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
-      "position": [
-        2180,
-        600
-      ]
+      "position": [2040, 460]
     }
   ],
   "connections": {
     "Executar Manualmente": {
-      "main": [
-        [
-          {
-            "node": "Trigger Unificado",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Agendamento Diario 02h": {
-      "main": [
-        [
-          {
-            "node": "Trigger Unificado",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Trigger Unificado": {
-      "main": [
-        [
-          {
-            "node": "Bronze: Contar Clientes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Bronze: Contar Clientes", "type": "main", "index": 0}]]
     },
     "Bronze: Contar Clientes": {
-      "main": [
-        [
-          {
-            "node": "Silver: Transformacoes DQ",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Silver: Transformacoes DQ", "type": "main", "index": 0}]]
     },
     "Silver: Transformacoes DQ": {
-      "main": [
-        [
-          {
-            "node": "Gold: Popular Dimensoes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Gold: Popular Dimensoes", "type": "main", "index": 0}]]
     },
     "Gold: Popular Dimensoes": {
-      "main": [
-        [
-          {
-            "node": "Gold: Popular Fatos",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Gold: Popular Fatos", "type": "main", "index": 0}]]
     },
     "Gold: Popular Fatos": {
-      "main": [
-        [
-          {
-            "node": "KPI 1: Saldo por Agencia",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "KPI 1: Saldo por Agencia", "type": "main", "index": 0}]]
     },
     "KPI 1: Saldo por Agencia": {
-      "main": [
-        [
-          {
-            "node": "Validar KPI1 vs Gabarito",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "Validar KPI1 vs Gabarito", "type": "main", "index": 0}]]
     },
     "Validar KPI1 vs Gabarito": {
-      "main": [
-        [
-          {
-            "node": "KPI1 Aprovado?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{"node": "KPI1 Aprovado?", "type": "main", "index": 0}]]
     },
     "KPI1 Aprovado?": {
       "main": [
-        [
-          {
-            "node": "Resultado: Aprovado",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Resultado: Falhou",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{"node": "Resultado: Aprovado", "type": "main", "index": 0}],
+        [{"node": "Resultado: Falhou",   "type": "main", "index": 0}]
       ]
     }
   },
   "active": false,
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "id": "banvic-pipeline-001",
-  "tags": [
-    {
-      "id": "tag-banvic",
-      "name": "banvic"
-    }
-  ]
+  "settings": {"executionOrder": "v1"},
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": [{"id": "tag-banvic", "name": "banvic"}]
 }

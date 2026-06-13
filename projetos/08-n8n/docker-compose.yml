@@ -1,5 +1,6 @@
 # Projeto 8 — BanVic 360 com n8n
-# Porta 5433 para nao conflitar com o PostgreSQL do docker-compose.yml raiz (5432)
+# Ambiente completamente isolado: postgres proprio + n8n.
+# Bronze e carregado pelo script run_automacao.py via carga_bronze.py (porta 5433).
 
 name: banvic-p08-n8n
 
@@ -15,15 +16,16 @@ services:
       POSTGRES_DB: banvic
     volumes:
       - pg_data:/var/lib/postgresql/data
-      # Cria schemas/extensoes automaticamente no primeiro start do container
-      - ../../sql/00_setup/00_schemas_extensoes.sql:/docker-entrypoint-initdb.d/00_schemas.sql:ro
+      # Cria schemas + extensoes + DDL bronze automaticamente no primeiro start
+      - ../../sql/00_setup/00_schemas_extensoes.sql:/docker-entrypoint-initdb.d/01_schemas.sql:ro
+      - ../../sql/01_bronze/ddl_bronze.sql:/docker-entrypoint-initdb.d/02_bronze.sql:ro
     ports:
-      - "5433:5432"
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-banvic_user} -d banvic"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 15
     networks:
       - banvic_n8n
 
@@ -40,24 +42,26 @@ services:
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_PASS:-banvic2024}
-      # Banco de metadados do n8n (SQLite por padrao — zero config)
+      # Banco de metadados do n8n (SQLite — zero config)
       DB_TYPE: sqlite
       # Fuso horario
       GENERIC_TIMEZONE: America/Sao_Paulo
       TZ: America/Sao_Paulo
-      # Variaveis do projeto expostas ao ambiente do n8n
+      # Postgres proprio do P08 — acessivel internamente como "postgres"
       BANVIC_PG_HOST: postgres
       BANVIC_PG_PORT: "5432"
       BANVIC_PG_USER: ${PG_USER:-banvic_user}
       BANVIC_PG_PASS: ${PG_PASS:-banvic_pass}
       BANVIC_PG_DB: banvic
-      # Execucoes salvas no historico
+      # Historico de execucoes
       EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
       EXECUTIONS_DATA_SAVE_ON_ERROR: all
       N8N_LOG_LEVEL: info
+      # Cookie sem Secure para funcionar em HTTP local (automacao Python)
+      N8N_SECURE_COOKIE: "false"
     volumes:
       - n8n_data:/home/node/.n8n
-      # Projeto montado em /data/banvic — acessivel nos Execute Command nodes
+      # Projeto montado — acessivel nos Execute Command nodes via /data/banvic
       - ../../:/data/banvic:ro
     depends_on:
       postgres:

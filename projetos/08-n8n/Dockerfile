@@ -9,6 +9,6 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     bash \
- && pip3 install --no-cache-dir psycopg2-binary pandas
+ && pip3 install --no-cache-dir --break-system-packages psycopg2-binary pandas
 
 USER node
