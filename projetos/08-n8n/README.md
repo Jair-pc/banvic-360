@@ -35,9 +35,33 @@ Ambos agendam e orquestram pipelines. A diferença é quem consegue usar:
 
 | KPI | Resultado |
 |---|---|
-| KPI 1 — Saldo total | R$ 26.509.620,12 (10 agências) |
+| KPI 1 — Saldo total | R$ 26.509.620,12 (10 agências) ✔ validado vs gabarito |
 | KPI 2 — Volume de transações | R$ 58.122.708,67 (71.921 tx, 155 meses) |
 | KPI 4 — Propostas | 525 Enviada / 513 Aprovada / 490 Validação / 468 Em análise |
+
+---
+
+## Prints
+
+### Overview — dois workflows importados
+
+![Overview dos workflows](prints/01_overview.png)
+
+### Pipeline ETL Completo — canvas
+
+![Canvas do Pipeline ETL](prints/02_pipeline_canvas.png)
+
+### Validação de KPIs — canvas
+
+![Canvas do Validar KPIs](prints/03_validar_kpis_canvas.png)
+
+### Pipeline ETL — execução com sucesso (28.4s, todos os nós verdes)
+
+![Execucao Pipeline ETL](prints/04_execucao_pipeline.png)
+
+### Validação de KPIs — execução com sucesso (0.74s, todos os nós verdes)
+
+![Execucao Validar KPIs](prints/05_execucao_validar_kpis.png)
 
 ---
 
@@ -48,83 +72,51 @@ projetos/08-n8n/
 ├── workflows/
 │   ├── 01_pipeline_banvic.json   Pipeline completo: Bronze → Silver → Gold → KPI
 │   └── 02_validar_kpis.json      Validação standalone (Gold já populado)
+├── prints/
+│   ├── 01_overview.png            UI do n8n — lista dos workflows
+│   ├── 02_pipeline_canvas.png     Canvas do Pipeline ETL
+│   ├── 03_validar_kpis_canvas.png Canvas do Validar KPIs
+│   ├── 04_execucao_pipeline.png   Execucao bem-sucedida — Pipeline ETL (28s)
+│   └── 05_execucao_validar_kpis.png Execucao bem-sucedida — Validar KPIs (0.74s)
 ├── Dockerfile                    n8n + psql + python3 (imagem customizada)
-├── docker-compose.yml            n8n + PostgreSQL em rede isolada
-├── .env.example                  Configurações
-└── run.bat                       Windows: sobe tudo
+├── docker-compose.yml            n8n + PostgreSQL em rede isolada (porta 5434)
+├── run_automacao.py              Automação completa end-to-end
+└── .env.example                  Configurações
 ```
 
 ---
 
 ## Como executar
 
-### Pré-requisitos
+### Pré-requisito
 
-- Docker Desktop instalado e rodando
-- CSVs do BanVic disponíveis (veja como obter na raiz do projeto)
+Docker Desktop instalado e rodando. Python 3 com `requests` instalado no host.
 
-### 1. Subir os containers
+### Automação completa (recomendado)
 
-**Windows:**
-```bat
-cd projetos\08-n8n
-run.bat
-```
-
-**Linux/Mac:**
-```bash
-cd projetos/08-n8n
-cp .env.example .env
-docker compose up -d --build
-```
-
-O build pode demorar 2-3 minutos na primeira vez (baixa a imagem do n8n).
-
-### 2. Acessar o n8n
-
-Abra `http://localhost:5678` no navegador.
-- Login: `admin`
-- Senha: `banvic2024`
-
-**O que você vai ver:** a interface do n8n com espaço em branco. Os workflows ainda não foram importados.
-
-### 3. Importar os workflows
-
-```
-Menu lateral → Settings → Import from file
-→ Selecionar: workflows/01_pipeline_banvic.json
-
-Menu lateral → Settings → Import from file
-→ Selecionar: workflows/02_validar_kpis.json
-```
-
-Depois do import, dois workflows aparecem na lista.
-
-### 4. Configurar a conexão com o banco
-
-```
-Menu lateral → Credentials → Add Credential → PostgreSQL
-  Nome:     BanVic PostgreSQL
-  Host:     postgres
-  Port:     5432
-  Database: banvic
-  User:     banvic_user
-  Password: banvic_pass
-```
-
-Clique em **Test** para verificar se conectou. Deve aparecer "Connection successful".
-
-### 5. Carregar os dados Bronze (se necessário)
+Da raiz do projeto:
 
 ```bash
-docker exec banvic-p08-n8n python3 /data/banvic/scripts/carga_bronze.py
+python projetos/08-n8n/run_automacao.py
 ```
 
-### 6. Executar o pipeline
+O script faz tudo automaticamente:
+1. Sobe os containers (PostgreSQL na porta 5434 + n8n na porta 5678)
+2. Aguarda o n8n inicializar
+3. Carrega o Bronze via `carga_bronze.py`
+4. Configura o owner e autentica no n8n
+5. Cria a credencial PostgreSQL
+6. Importa os dois workflows
+7. Executa o Pipeline ETL e depois a Validação de KPIs
 
-Abra o workflow `BanVic 360 - Pipeline ETL Completo` → clique em **Execute Workflow**.
+Ao final, o n8n fica disponível em `http://localhost:5678`.
+Login: `admin@banvic.com` / `Banvic2024!`
 
-Observe os blocos ficando verdes em tempo real. Se um bloco ficar vermelho, clique nele para ver o erro.
+### Para parar
+
+```bash
+docker compose -f projetos/08-n8n/docker-compose.yml down
+```
 
 ---
 
@@ -132,24 +124,25 @@ Observe os blocos ficando verdes em tempo real. Se um bloco ficar vermelho, cliq
 
 ```
 [Executar Manualmente]
-[Agendamento Diário 02h]   ← mesmas entradas, fluxo unificado
-         ↓
-[Verificar Bronze]         ← garante que os dados chegaram
-         ↓
-[Silver: Limpeza]          ← chama o SQL do Projeto 1
-         ↓
-[Gold: Dimensões]          ← chama o SQL do Projeto 1
-         ↓
-[Gold: Fatos]              ← chama o SQL do Projeto 1
-         ↓
-[KPI 1: Saldo por Agência] ← consulta direta no banco
-         ↓
-[Validar vs Gabarito]      ← JavaScript: compara o resultado
-         ↓
-[Aprovado?]                ← bloco IF com duas saídas
-    ↓              ↓
-[Sucesso]      [Falhou: envia alerta]
+         |
+[Bronze: Contar Clientes]   <- verifica que os dados chegaram
+         |
+[Silver: Transformacoes DQ] <- roda ddl_silver_transforms.sql + ddl_gold
+         |
+[Gold: Popular Dimensoes]   <- roda 01_populate_dims.sql
+         |
+[Gold: Popular Fatos]       <- roda 02_populate_fatos.sql
+         |
+[KPI 1: Saldo por Agencia]  <- consulta direta no banco (PostgreSQL node)
+         |
+[Validar KPI1 vs Gabarito]  <- JavaScript: compara vs R$ 26.509.620,12
+         |
+[KPI1 Aprovado?]            <- bloco IF com duas saidas
+    |              |
+[Aprovado]     [Falhou]
 ```
+
+**Workflow 2 (standalone):** executa KPI1, KPI2, KPI4 e KPI7 em paralelo contra o Gold já populado.
 
 ---
 
@@ -167,31 +160,45 @@ Isso mostra o papel correto do n8n: ele é um **orquestrador**, não um reescrit
 
 ---
 
+## Decisões técnicas
+
+| Decisão | Motivo |
+|---|---|
+| PostgreSQL isolado na porta 5434 | P04 usa 5433; evitar conflito |
+| `N8N_SECURE_COOKIE=false` | n8n 1.x define cookie Secure mesmo em HTTP — Python não envia em localhost |
+| Execução via `docker exec n8n execute` | REST `/run` retorna 500 em certos fluxos; CLI é mais confiável |
+| Sem Merge node no wf01 | Merge v3 com `passThrough` falha quando apenas 1 dos inputs dispara via CLI |
+| `TO_CHAR(t.data, 'YYYY-MM')` no KPI2 | `dim_tempo` não tem coluna `ano_mes`; usar função de formatação |
+| `.first()` no Code node com fan-in | `$('Node').item` falha com múltiplos inputs; `.first()` é necessário |
+
+---
+
 ## Se algo não funcionar
 
 **n8n não abre em localhost:5678**
 ```bash
-docker ps   # verifique se banvic-p08-n8n está na lista
-docker logs banvic-p08-n8n --tail 30   # veja o log de inicialização
+docker ps
+docker logs banvic-p08-n8n --tail 30
 ```
 
-**"Credential not found" ao executar o workflow**
+**Erro 401 na automação**
 ```
-O workflow foi importado mas a credencial não foi criada ainda.
-Volte ao Passo 4 e configure a credencial PostgreSQL.
+Normal na primeira execução se o owner ainda não foi criado.
+O script run_automacao.py faz o setup automaticamente.
 ```
 
 **Bloco vermelho "Execute Command"**
 ```
-O script SQL não conseguiu conectar ao banco.
-Verifique se o container postgres está rodando:
+Verificar se o container postgres está saudável:
 docker ps | grep postgres
+docker logs banvic-p08-postgres --tail 20
 ```
 
 **"Table does not exist" no bloco Silver**
 ```bash
-# Bronze não foi carregado
-docker exec banvic-p08-n8n python3 /data/banvic/scripts/carga_bronze.py
+# Bronze não foi carregado — rodar manualmente:
+python scripts/carga_bronze.py
+# (com PG_PORT=5434 e PG_HOST=localhost nas variáveis de ambiente)
 ```
 
 ---
