@@ -22,6 +22,18 @@ O Airflow funciona como um **gerente de tarefas**: você define o que precisa se
 
 ---
 
+## Prints
+
+### Lista de DAGs — pipeline ativo (toggle azul)
+
+![DAG list](prints/01_dag_list.png)
+
+### Graph view — todas as tarefas com sucesso
+
+![Graph success](prints/02_graph_success.png)
+
+---
+
 ## Arquivos do projeto
 
 ```
