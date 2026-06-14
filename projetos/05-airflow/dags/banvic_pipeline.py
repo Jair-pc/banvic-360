@@ -202,14 +202,14 @@ SILVER_SQL: dict[str, str] = {
             c.primeiro_nome, c.ultimo_nome,
             LOWER(c.email), c.cpf,
             c.data_nascimento::DATE,
-            NULL, NULL, NULL, c.cargo,
+            NULL, NULL, NULL, NULL::TEXT,
             NULL::SMALLINT, NULL, NULL::NUMERIC,
             NULL::INTEGER,
             NULL::DATE, NULL::DATE, TRUE, NOW()
         FROM bronze.colaboradores c
         WHERE NOT EXISTS (
             SELECT 1 FROM bronze.colaboradores_expandidos e
-            WHERE e.cod_colaborador = c.cod_colaborador
+            WHERE e.cod_colaborador::INTEGER = c.cod_colaborador::INTEGER
         );
     """,
 

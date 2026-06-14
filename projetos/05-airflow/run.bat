@@ -17,14 +17,19 @@ echo [OK] banvic-base-postgres detectado.
 
 echo.
 echo [1/2] Inicializando banco de metadados do Airflow (primeira vez)...
-docker compose up airflow-init
+docker compose up --abort-on-container-exit --exit-code-from airflow-init airflow-init
 if errorlevel 1 (
-    echo [AVISO] Init retornou erro - pode ser re-execucao, continuando...
+    echo [ERRO] Inicializacao do Airflow falhou.
+    exit /b 1
 )
 
 echo.
 echo [2/2] Subindo Airflow (webserver + scheduler)...
 docker compose up -d airflow-webserver airflow-scheduler
+if errorlevel 1 (
+    echo [ERRO] Falha ao subir webserver/scheduler.
+    exit /b 1
+)
 
 echo.
 echo [OK] Airflow disponivel em http://localhost:8080

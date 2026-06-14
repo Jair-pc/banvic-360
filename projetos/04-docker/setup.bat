@@ -43,6 +43,11 @@ if %errorlevel% neq 0 (
 )
 
 echo [5/6] Transformando Silver e populando Gold...
+docker compose -f "%SCRIPT_DIR%docker-compose.yml" exec -T postgres psql -v ON_ERROR_STOP=1 -U banvic_user -d banvic -c "DROP SCHEMA IF EXISTS silver CASCADE; CREATE SCHEMA silver; DROP SCHEMA IF EXISTS gold CASCADE; CREATE SCHEMA gold;"
+if %errorlevel% neq 0 (
+    echo ERRO: reinicializacao das camadas Silver/Gold falhou
+    exit /b 1
+)
 docker compose -f "%SCRIPT_DIR%docker-compose.yml" exec -T postgres psql -v ON_ERROR_STOP=1 -U banvic_user -d banvic -f /sql/02_silver/ddl_silver_transforms.sql
 if %errorlevel% neq 0 (
     echo ERRO: transformacao Silver falhou

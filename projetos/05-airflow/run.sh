@@ -21,7 +21,7 @@ export AIRFLOW_UID=$(id -u)
 
 echo ""
 echo "[1/2] Inicializando banco de metadados do Airflow (primeira vez)..."
-docker compose up airflow-init || echo "[AVISO] Init retornou erro - pode ser re-execucao, continuando..."
+docker compose up --abort-on-container-exit --exit-code-from airflow-init airflow-init
 
 echo ""
 echo "[2/2] Subindo Airflow (webserver + scheduler)..."

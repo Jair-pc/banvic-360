@@ -27,6 +27,9 @@ cd "$PROJECT_ROOT"
 PG_HOST=localhost PG_PORT=5433 python scripts/carga_bronze.py
 
 echo "[5/6] Transformando Silver e populando Gold..."
+docker compose -f "$SCRIPT_DIR/docker-compose.yml" exec -T postgres \
+    psql -v ON_ERROR_STOP=1 -U banvic_user -d banvic \
+    -c "DROP SCHEMA IF EXISTS silver CASCADE; CREATE SCHEMA silver; DROP SCHEMA IF EXISTS gold CASCADE; CREATE SCHEMA gold;"
 docker compose -f "$SCRIPT_DIR/docker-compose.yml" exec -T postgres psql -v ON_ERROR_STOP=1 -U banvic_user -d banvic -f /sql/02_silver/ddl_silver_transforms.sql
 docker compose -f "$SCRIPT_DIR/docker-compose.yml" exec -T postgres psql -v ON_ERROR_STOP=1 -U banvic_user -d banvic -f /sql/03_gold/ddl_modelo_dimensional.sql
 docker compose -f "$SCRIPT_DIR/docker-compose.yml" exec -T postgres psql -v ON_ERROR_STOP=1 -U banvic_user -d banvic -f /proj01sql/01_populate_dims.sql
