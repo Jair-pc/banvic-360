@@ -17,8 +17,24 @@ O dbt resolve isso: cada transformação é um arquivo SQL separado, versionado 
 ## Resultado
 
 ```
-17 models criados — testes passando — APROVADO
+21 models criados — 64 testes passando — APROVADO
 ```
+
+---
+
+## Prints
+
+### dbt run — 21 models criados com sucesso
+
+![dbt run](prints/01_dbt_run.png)
+
+### dbt test — 64 testes passando
+
+![dbt test](prints/02_dbt_test.png)
+
+### Lineage Graph — Bronze → Silver → Gold → KPIs
+
+![Lineage Graph](prints/03_lineage.png)
 
 ---
 
